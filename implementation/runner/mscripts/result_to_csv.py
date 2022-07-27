@@ -2,6 +2,7 @@ from fcntl import F_SEAL_SHRINK
 import re
 import sys
 import pandas as pd
+from utils import fit_cols, val_cols
 
 regex = re.compile("\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} \[([\d\s,]+)\]:((?:[+-]?(?:[0-9]*[.])?[0-9]+,?)+)")
 
@@ -51,27 +52,6 @@ arrs = [
 arrs = None
 
 AUTO_GROUP = True
-
-val_cols = [
-        "Road type",
-        "Road ID",
-        "Scenario Length", 
-        "Vehicle_in_front", 
-        "vehicle_in_adjcent_lane", 
-        "vehicle_in_opposite_lane", 
-        "vehicle_in_front_two_wheeled", 
-        "vehicle_in_adjacent_two_wheeled", 
-        "vehicle_in_opposite_two_wheeled",
-        "time of day", 
-        "weather", 
-        "Number of People", 
-        "Target Speed", 
-        "Trees in scenario", 
-        "Buildings in Scenario", 
-        "task"
-]
-
-fit_cols = ['DE', 'DfC', 'DfV', 'DfP', 'DfM', 'DT']
 
 def create_dict(V, F):
     d = {}

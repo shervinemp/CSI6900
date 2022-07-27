@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import entropy
+from utils import fit_cols, val_cols
 
 def event1(input_df, run=None):
     eps = 1
@@ -141,6 +142,8 @@ def event6(input_df):
         return 0
     edge = input_df.DiLS.map(lambda x: x.split('-')[1].split('_')[1]).map({'Red': 0, 'Yellow': 1, 'Green': 2}).diff().fillna(0) != 0
     run_len = input_df.groupby('run')['DE'].count()
+    if edge.sum() == 0:
+        return 0
     light_change = [[e for e in x if e != 0] for x in input_df[edge].groupby('run').groups.values()]
     max_len = max(map(len, light_change))
     padded = [(x + [m for i in range(max_len - len(x))]) for x, m in zip(light_change, run_len)]
@@ -148,15 +151,15 @@ def event6(input_df):
     return events.std(axis=0).mean()
 
 def soft_flaky(whole_df):
-    fit_cols = [f'f{i}' for i in range(6)]
     normalized = whole_df.copy()
-    normalized[fit_cols] = whole_df[fit_cols] / 1
-    return 4 * normalized.groupby('case')[fit_cols].var()
+    ma, mi = whole_df[fit_cols].max(), whole_df[fit_cols].min()
+    normalized[fit_cols] = (whole_df[fit_cols] - mi) / (ma - mi + 1e-4)
+    return 4 * normalized.groupby(val_cols)[fit_cols].var()
 
 def hard_flaky(whole_df):
-    fit_cols = [f'f{i}' for i in range(6)]
     normalized = whole_df.copy()
-    normalized[fit_cols] = whole_df[fit_cols] / 1
+    ma, mi = whole_df[fit_cols].max(), whole_df[fit_cols].min()
+    normalized[fit_cols] = (whole_df[fit_cols] - mi) / (ma - mi + 1e-4)
     hard_df = normalized.copy()
     hard_df[fit_cols] = hard_df[fit_cols] > 0
-    return hard_df.groupby('case')[fit_cols].agg(lambda x: entropy([x.sum(), x.count() - x.sum()], base=2))
+    return hard_df.groupby(val_cols)[fit_cols].agg(lambda x: entropy([x.sum(), x.count() - x.sum()], base=2))
