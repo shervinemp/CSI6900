@@ -11,9 +11,15 @@ if __name__ == '__main__':
     ind_cols = [f'event{i}' for i in ['1', '1_1', '1_2', '1_3', '1_4', '2_1', '2_2', '3']] + ['idx']
     cum_dfs = []
     cum_cols = ['event4', 'event5', 'event6']
-    for idx, f in enumerate(sys.argv[2:]):
+    whole_df.iloc[:, 12] *= 10
+    run_thresh = 10
+    csv_files = map(lambda x: str(list(x))+'.csv', whole_df.groupby(whole_df.columns[:16].to_list()).size().index)
+    for idx, f in enumerate(csv_files):
         input_df = pd.read_csv(f, index_col=0)
-        for i in range(10):
+        runs = input_df['run'].max() + 1
+        if runs < run_thresh:
+            continue;
+        for i in range(runs):
             arr = [
                 event1(input_df, i),
                 event1_1(input_df, i),
