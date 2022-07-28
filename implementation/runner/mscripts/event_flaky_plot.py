@@ -13,7 +13,7 @@ if __name__ == '__main__':
     cum_cols = ['event4', 'event5', 'event6']
     run_thresh = 10
     whole_df.iloc[:, 12] *= 10
-    whole_df = whole_df.set_index(val_cols)[whole_df.groupby(val_cols).count() >= run_thresh].reset_index()
+    whole_df = whole_df.set_index(val_cols)[whole_df.groupby(val_cols).run.count() >= run_thresh].reset_index()
     csv_files = map(lambda x: str(list(x))+'.csv', whole_df.groupby(val_cols).size().index)
     for idx, f in enumerate(csv_files):
         input_df = pd.read_csv(f, index_col=0)
@@ -41,8 +41,9 @@ if __name__ == '__main__':
     ind_df.index = list(map(int, ind_df.index))
     cum_df = pd.DataFrame(cum_dfs, columns=cum_cols)
     event_df = pd.merge(ind_df, cum_df, left_index=True, right_index=True)
-    flaky_df = pd.merge(soft_flaky(whole_df), hard_flaky(whole_df), suffixes=('_soft', '_hard'), left_index=True, right_index=True)
-    measure_df = pd.merge(event_df, flaky_df, left_index=True, right_index=True)
+    sf_df, hf_df = soft_flaky(whole_df), hard_flaky(whole_df)
+    flaky_df = pd.merge(sf_df, hf_df, suffixes=('_soft', '_hard'), left_index=True, right_index=True)
+    measure_df = pd.merge(event_df, flaky_df.reset_index(drop=True), left_index=True, right_index=True)
 
     rows, cols = len(flaky_df.columns), len(event_df.columns)
     fig, axes = plt.subplots(rows, cols, figsize=(40, 40))
