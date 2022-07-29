@@ -44,6 +44,7 @@ if __name__ == '__main__':
     sf_df, hf_df = soft_flaky(whole_df), hard_flaky(whole_df)
     flaky_df = pd.merge(sf_df, hf_df, suffixes=('_soft', '_hard'), left_index=True, right_index=True)
     measure_df = pd.merge(event_df, flaky_df.reset_index(drop=True), left_index=True, right_index=True)
+    measure_df.to_csv('measure.csv')
 
     rows, cols = len(flaky_df.columns), len(event_df.columns)
     fig, axes = plt.subplots(rows, cols, figsize=(40, 40))
@@ -56,8 +57,9 @@ if __name__ == '__main__':
             ax = axes[i][j]
             ax.scatter(x[order], y[order])
             ax.set_title('e{}_{}'.format(event_df.columns[j][5:], flaky_df.columns[i]))
-    fig.savefig('plots.png')
-    measure_df.to_csv('measure.csv')
+    plt.savefig('plots.png')
+    plt.close()
     corr = measure_df.corr().dropna(axis=0, how='all').dropna(axis=1, how='all')
     hm = sns.heatmap(corr.iloc[11:, :11], cmap="viridis")
-    hm.get_figure().savefig('corr.png')
+    plt.savefig('corr.png')
+    plt.close()
