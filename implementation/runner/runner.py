@@ -258,8 +258,7 @@ def run_single_scenario(fv_arg, suffix=None, record=True):
     time.sleep(1)
     if suffix is None:
         suffix = '_' + str(datetime.now())
-    else:
-        suffix = suffix.replace(":", "-")
+    suffix = suffix.replace(":", "-")
     if record is True:
         rec_obj = start_record('Results/' + str(fv_arg) + suffix + '.ogv')
     while (True):

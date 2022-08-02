@@ -7,6 +7,8 @@ import logging
 from runner import run_single_scenario
 from RS import *
 
+RECORD = False
+
 class Pylot_caseStudy():
     def __init__(self):
         logger = logging.getLogger('logger')
@@ -22,7 +24,7 @@ class Pylot_caseStudy():
         fv = x
         if fv[0] != 3:
             fv[15] = 0
-        DfC_min, DfV_max, DfP_max, DfM_max, DT_max, traffic_lights_max = run_single_scenario(fv)
+        DfC_min, DfV_max, DfP_max, DfM_max, DT_max, traffic_lights_max = run_single_scenario(fv, record=RECORD)
 
         logger = logging.getLogger('logger')
         logger.info(str(fv)+':'+ str(DfC_min)+ ','+str( DfV_max)+','+str(DfP_max)+ ','+str(DfM_max)+ ','+str( DT_max) +','+ str(traffic_lights_max))
