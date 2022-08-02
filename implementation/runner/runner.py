@@ -234,17 +234,17 @@ def copy_to_host(fv, suffix=None):
     if suffix is None:
         suffix = ''
     file_name = 'pylot:/home/erdos/workspace/results/' + str(fv)  # + '.log'
-    cmd = ['docker', 'cp', file_name, (cfg.base_directory + "Results/" + str(fv) + suffix).replace(":", "-")]
+    cmd = ['docker', 'cp', file_name, (cfg.base_directory + "Results/" + str(fv) + suffix)]
     print(' '.join(cmd), flush=True)
     run_command(cmd)
     file_name = 'pylot:/home/erdos/workspace/results/' + str(fv)   + '_ex.log'
-    cmd = ['docker', 'cp', file_name, (cfg.base_directory + "Results/" + str(fv) + suffix + "_ex.log").replace(":", "-")]
+    cmd = ['docker', 'cp', file_name, (cfg.base_directory + "Results/" + str(fv) + suffix + "_ex.log")]
     run_command(cmd)
     file_name = 'pylot:/home/erdos/workspace/recording.log'
-    cmd = ['docker', 'cp', file_name, (cfg.base_directory + "Results/" + "rec" + str(fv) + suffix + ".log").replace(":", "-")]
+    cmd = ['docker', 'cp', file_name, (cfg.base_directory + "Results/" + "rec" + str(fv) + suffix + ".log")]
     run_command(cmd)
 
-def run_single_scenario(fv_arg, suffix=None):
+def run_single_scenario(fv_arg, suffix=None, record=True):
     print('single_scenario: ', fv_arg, flush=True)
     fv = copy.deepcopy(fv_arg)
     if fv[12]< 10:
@@ -258,13 +258,17 @@ def run_single_scenario(fv_arg, suffix=None):
     time.sleep(1)
     if suffix is None:
         suffix = '_' + str(datetime.now())
-    rec_obj = start_record('Results/' + str(fv_arg) + suffix + '.ogv')
+    else:
+        suffix = suffix.replace(":", "-")
+    if record is True:
+        rec_obj = start_record('Results/' + str(fv_arg) + suffix + '.ogv')
     while (True):
         counter = counter + 1
         time.sleep(1)
         if (counter > cfg.time_allowed or scenario_finished()):
             # print('-'*100, flush=True)
-            stop_record(rec_obj, keep=True)
+            if record is True:
+                stop_record(rec_obj, keep=True)
             copy_to_host(fv, suffix=suffix)
             stop_pylot_container()
             break;
