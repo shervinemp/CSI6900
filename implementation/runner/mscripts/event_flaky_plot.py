@@ -8,7 +8,7 @@ from utils import val_cols
 if __name__ == '__main__':
     whole_df = pd.read_csv(sys.argv[1], index_col=0)
     ind_dfs = []
-    ind_cols = [f'event{i}' for i in ['1', '1_1', '1_2', '1_3', '1_4', '2_1', '2_2', '3']] + ['idx']
+    ind_cols = [f'event{i}' for i in ['1_1', '1_2', '1_3', '1_4', '2_1', '2_2', '3']] + ['idx']
     cum_dfs = []
     cum_cols = ['event4', 'event5', 'event6']
     run_thresh = 10
@@ -20,7 +20,6 @@ if __name__ == '__main__':
         runs = input_df['run'].max()
         for i in range(runs + 1):
             arr = [
-                event1(input_df, i),
                 event1_1(input_df, i),
                 event1_2(input_df, i),
                 event1_3(input_df, i),
@@ -39,7 +38,7 @@ if __name__ == '__main__':
         cum_dfs.append(arr)
     ind_df = pd.DataFrame(ind_dfs, columns=ind_cols).groupby('idx').mean()
     ind_df.index = list(map(int, ind_df.index))
-    cum_df = pd.DataFrame(cum_dfs, columns=cum_cols)
+    cum_df = pd.DataFrame(cum_dfs, columns=cum_cols, index=ind_df.index)
     event_df = pd.merge(ind_df, cum_df, left_index=True, right_index=True)
     sf_df, hf_df = soft_flaky(whole_df), hard_flaky(whole_df)
     flaky_df = pd.merge(sf_df, hf_df, suffixes=('_soft', '_hard'), left_index=True, right_index=True)

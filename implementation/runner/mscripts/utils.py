@@ -18,4 +18,5 @@ val_cols = [
         "task"
 ]
 
-fit_cols = ['DE', 'DfC', 'DfV', 'DfP', 'DfM', 'DT']
+# fit_cols = ['DE', 'DfC', 'DfV', 'DfP', 'DfM', 'DT']
+fit_cols = [f'f{i+1}' for i in range(6)]
