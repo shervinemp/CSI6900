@@ -1,3 +1,4 @@
+from itertools import count
 import sys
 sys.path.append('lib/')
 import multiprocessing
@@ -8,6 +9,9 @@ from runner import run_single_scenario
 from RS import *
 
 RECORD = False
+MAX_ITERS = 50
+REPEATS = 1
+TOTAL_TIME_BUDGET = None
 
 class Pylot_caseStudy():
     def __init__(self):
@@ -67,14 +71,14 @@ def run(i,archive):
 
     logger.setLevel(logging.INFO)
 
-    archive = minimize(Pylot_caseStudy()._evaluate, size, lb, ub, no_of_Objectives, threshold_criteria, time_budget, logger, archive)
+    archive = minimize(Pylot_caseStudy()._evaluate, size, lb, ub, no_of_Objectives, threshold_criteria, time_budget, logger, archive, max_iters=MAX_ITERS, repeats=REPEATS)
     logger.info("Iteration completed")
 
 
 if __name__ == "__main__":
     #
     print("in main")
-    times_of_repetitions = 1
+    times_of_repetitions = 10
     for i in range(0, times_of_repetitions):
         manager = multiprocessing.Manager()
         archive = manager.list()
@@ -82,7 +86,7 @@ if __name__ == "__main__":
 
         p.start()
 
-        for t in range(9999):
+        for t in (count(start=0, step=1) if TOTAL_TIME_BUDGET is None else range(TOTAL_TIME_BUDGET)):
 
             if p.is_alive():
                 time.sleep(60)

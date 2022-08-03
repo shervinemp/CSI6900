@@ -7,7 +7,7 @@ import time
 from utils import *
 
 
-def run_search(func, size, lb, ub, no_of_Objectives, criteria,archive,logger,start,time_budget, max_iters=None, repeat=1):
+def run_search(func, size, lb, ub, no_of_Objectives, criteria,archive,logger,start,time_budget, max_iters=None, repeats=1):
 
     threshold_criteria = criteria
     objective_uncovered = []
@@ -17,7 +17,7 @@ def run_search(func, size, lb, ub, no_of_Objectives, criteria,archive,logger,sta
     while (max_iters is None or it < max_iters):
         random_population = generate_random_population(size, lb, ub)  # Generating random population
         P_T = copy.copy(random_population)
-        for i in range(repeat):
+        for i in range(repeats):
             evaulate_population(func, random_population)  # evaluating whole generation and storing results
 
             update_archive(random_population, objective_uncovered, archive, no_of_Objectives,
