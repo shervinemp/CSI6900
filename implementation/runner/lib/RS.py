@@ -7,7 +7,7 @@ import time
 from utils import *
 
 
-def run_search(func, size, lb, ub, no_of_Objectives, criteria,archive,logger,start,time_budget, max_iters=None, repeats=1):
+def run_search(func, size, lb, ub, no_of_Objectives, criteria,archive,logger,start,time_budget, max_iters, repeats):
 
     threshold_criteria = criteria
     objective_uncovered = []
@@ -30,11 +30,11 @@ def run_search(func, size, lb, ub, no_of_Objectives, criteria,archive,logger,sta
                 arc.get_covered_objectives()))
         it += 1
 
-def minimize(func, size, lb, ub, no_of_Objectives, criteria,time_budget,logger,archive):
+def minimize(func, size, lb, ub, no_of_Objectives, criteria,time_budget,logger,archive, max_iters=None, repeats=1):
     assert hasattr(func, '__call__')
 
     start = time.time()
-    run_search(func, size, lb, ub, no_of_Objectives, criteria,archive,logger,start,time_budget)
+    run_search(func, size, lb, ub, no_of_Objectives, criteria,archive,logger,start,time_budget, max_iters, repeats)
 
 
 
