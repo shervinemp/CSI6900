@@ -150,11 +150,21 @@ def event6(input_df):
     events = np.array(padded)
     return events.std(axis=0).mean()
 
-def soft_flaky(whole_df):
+def soft_flaky(whole_df, type='std'):
+    """
+    type: ['std', 'var', 'range']
+    """
     normalized = whole_df.copy()
     ma, mi = whole_df[fit_cols].max(), whole_df[fit_cols].min()
     normalized[fit_cols] = (whole_df[fit_cols] - mi) / (ma - mi + 1e-4)
-    return 4 * normalized.groupby(val_cols)[fit_cols].var()
+    sel = normalized.groupby(val_cols)[fit_cols]
+    if type == 'std':
+        res = 2 * sel.std()
+    elif type == 'var':
+        res = 4 * sel.var()
+    elif type == 'range':
+        res = sel.max() - sel.min()
+    return res
 
 def hard_flaky(whole_df):
     normalized = whole_df.copy()
