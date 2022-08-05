@@ -52,7 +52,7 @@ if __name__ == '__main__':
     measure_df.to_csv('measure.csv')
 
     rows, cols = len(flaky_df.columns), len(event_df.columns)
-    fig, axes = plt.subplots(rows, cols, figsize=(40, 40))
+    fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))
     plt.setp(axes, ylim=(0., 1.01), yticks=[])
     for i in range(rows):
         for j in range(cols):
