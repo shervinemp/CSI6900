@@ -48,7 +48,7 @@ if __name__ == '__main__':
     sf_rang_df = soft_flaky(whole_df, type='range').add_suffix('_rang')
     hf_df = hard_flaky(whole_df).add_suffix('_hard')
     flaky_df = pd.concat([sf_df, sf_rang_df, hf_df], axis=1)
-    measure_df = pd.merge(event_df, flaky_df.reset_index(), left_index=True, right_index=True)
+    measure_df = pd.merge(event_df, flaky_df.reset_index(drop=True), left_index=True, right_index=True)
     measure_df.to_csv('measure.csv')
 
     rows, cols = len(flaky_df.columns), len(event_df.columns)
@@ -65,7 +65,6 @@ if __name__ == '__main__':
     plt.savefig('plots.png')
     plt.close()
     corr = measure_df.corr().dropna(axis=0, how='all').dropna(axis=1, how='all')
-    c = len(event_df.columns)
-    hm = sns.heatmap(corr.iloc[c:, :c], cmap="viridis")
+    hm = sns.heatmap(corr.iloc[cols:, -rows:], cmap="viridis")
     plt.savefig('corr.png')
     plt.close()
