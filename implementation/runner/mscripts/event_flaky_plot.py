@@ -47,8 +47,8 @@ if __name__ == '__main__':
     sf_df = soft_flaky(whole_df).add_suffix('_soft')
     sf_rang_df = soft_flaky(whole_df, type='range').add_suffix('_rang')
     hf_df = hard_flaky(whole_df).add_suffix('_hard')
-    flaky_df = pd.concat([sf_df, sf_rang_df, hf_df], axis=1)
-    measure_df = pd.merge(event_df, flaky_df.reset_index(drop=True), left_index=True, right_index=True)
+    flaky_df = pd.concat([sf_df, sf_rang_df, hf_df], axis=1).reset_index(drop=True)
+    measure_df = pd.merge(event_df, flaky_df, left_index=True, right_index=True)
     measure_df.to_csv('measure.csv')
 
     rows, cols = len(flaky_df.columns), len(event_df.columns)
