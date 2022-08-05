@@ -65,6 +65,6 @@ if __name__ == '__main__':
     plt.savefig('plots.png')
     plt.close()
     corr = measure_df.corr().dropna(axis=0, how='all').dropna(axis=1, how='all')
-    hm = sns.heatmap(corr.iloc[cols:, -rows:], cmap="viridis")
+    hm = sns.heatmap(corr.iloc[cols:, :-rows], cmap="viridis")
     plt.savefig('corr.png')
     plt.close()
