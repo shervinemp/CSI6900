@@ -167,9 +167,6 @@ def soft_flaky(whole_df, type='std'):
     return res
 
 def hard_flaky(whole_df):
-    normalized = whole_df.copy()
-    ma, mi = whole_df[fit_cols].max(), whole_df[fit_cols].min()
-    normalized[fit_cols] = (whole_df[fit_cols] - mi) / (ma - mi + 1e-4)
-    hard_df = normalized.copy()
+    hard_df = whole_df.copy()
     hard_df[fit_cols] = hard_df[fit_cols] > 0
     return hard_df.groupby(val_cols)[fit_cols].agg(lambda x: entropy([x.sum(), x.count() - x.sum()], base=2))
