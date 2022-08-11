@@ -1,3 +1,4 @@
+from glob import glob
 
 val_cols = [
         "Road type",
@@ -20,3 +21,17 @@ val_cols = [
 
 # fit_cols = ['DE', 'DfC', 'DfV', 'DfP', 'DfM', 'DT']
 fit_cols = [f'f{i+1}' for i in range(6)]
+
+def fv_to_filename(fv):
+        a = [x for x in fv]
+        a[-4] = a[-4] // 10
+        return str(a)
+
+def filename_to_fv(filename):
+        a = eval(f'list({filename})')
+        a[-4] = a[-4] * 10
+        return a
+
+def get_fv_files(fv):
+        fn = fv_to_filename(fv)
+        return list(filter(lambda x: (x[-4] != '.' and x[-5] != '.'), glob(f'{fn}*')))
