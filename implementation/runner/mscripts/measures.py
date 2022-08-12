@@ -169,4 +169,4 @@ def soft_flaky(whole_df, type='std'):
 def hard_flaky(whole_df):
     hard_df = whole_df.copy()
     hard_df[fit_cols] = hard_df[fit_cols] > 0
-    return hard_df.groupby(val_cols)[fit_cols].agg(lambda x: entropy([x.sum(), x.count() - x.sum()], base=2))
+    return hard_df.groupby(val_cols)[fit_cols].agg(lambda x: entropy([x.sum(), x.count() - x.sum()], base=2)).astype(float)

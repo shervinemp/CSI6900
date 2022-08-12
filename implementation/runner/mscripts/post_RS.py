@@ -291,7 +291,7 @@ if __name__ == '__main__':
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(4*len(fit_cols), 4))
     for i, _ in enumerate(fit_cols):
         ax = axes[i]
-        g = sns.lineplot(x='index', y='vals', data=df[df.fit_id==i], ax=ax)
+        g = sns.lineplot(x='index', y='vals', hue='acc', data=df[df.fit_id==i], ax=ax)
     plt.savefig('rs_plot.png')
     plt.close()
     plt.tight_layout()
