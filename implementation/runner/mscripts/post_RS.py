@@ -1,6 +1,9 @@
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 from data_handler import get_values
-from mscripts.utils import get_fv_files
+from utils import get_fv_files, fit_cols
 
 exps = [[0, 2, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 3, 1, 1, 0],
     [1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 4, 1, 4, 1, 1, 0],
@@ -253,6 +256,8 @@ exps = [[0, 2, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 3, 1, 1, 0],
     [3, 3, 0, 1, 1, 1, 1, 1, 0, 1, 6, 1, 4, 1, 1, 2],
     [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 5, 0, 2, 1, 1, 0]]
 
+groups = [exps[i: i+50] for i in range(0, len(exps), 50)]
+
 RANDOMIZE = True
 
 def rs(iterable):
@@ -264,10 +269,29 @@ def rs(iterable):
             mi_idx, mi = i, v
         yield mi_idx, mi
 
-if __name__ == '__main__':
-    idx = range(len(exps))
+def do(group, target_fit, acc_min=True, seed=0):
+    rand = np.random.RandomState(seed=seed)
+    idx = range(len(group))
     if RANDOMIZE is True:
-        idx = np.random.permutation(len(exps))
-    iterable = (get_values(get_fv_files(exps[i])[0]) for i in idx)
-    results = list(rs(iterable))
-    print(results)
+        idx = rand.permutation(idx)
+    val_fn = lambda i: min(get_values(f)[target_fit] \
+                           for f in get_fv_files(group[i])) \
+                       if acc_min is True \
+                       else get_values(get_fv_files(group[i])[0])[target_fit]
+    iterable = map(val_fn, idx)
+    return rs(iterable)
+
+if __name__ == '__main__':
+    res_grps = [pd.DataFrame({'vals': list(map(lambda x:x[1], do(g, j, acc_min=a)))}).reset_index().assign(grp=i, fit_id=j, acc=a) \
+                for i, g in enumerate(groups) \
+                for j, _ in enumerate(fit_cols) \
+                for a in (False, True)]
+    df = pd.concat(res_grps, axis=0, ignore_index=True)
+    # results = df.groupby(['grp', 'fit', 'index']).mean()
+    fig, axes = plt.subplots(1, len(fit_cols), figsize=(4*len(fit_cols), 4))
+    for i, _ in enumerate(fit_cols):
+        ax = axes[i]
+        g = sns.lineplot(x='index', y='vals', data=df[df.fit_id==i], ax=ax)
+    plt.savefig('rs_plot.png')
+    plt.close()
+    plt.tight_layout()

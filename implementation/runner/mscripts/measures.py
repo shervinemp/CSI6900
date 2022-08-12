@@ -154,10 +154,10 @@ def soft_flaky(whole_df, type='std'):
     """
     type: ['std', 'var', 'range']
     """
-    normalized = whole_df.copy()
-    ma, mi = whole_df[fit_cols].max(), whole_df[fit_cols].min()
-    normalized[fit_cols] = (whole_df[fit_cols] - mi) / (ma - mi + 1e-4)
-    sel = normalized.groupby(val_cols)[fit_cols]
+    # normalized = whole_df.copy()
+    # ma, mi = whole_df[fit_cols].max(), whole_df[fit_cols].min()
+    # normalized[fit_cols] = (whole_df[fit_cols] - mi) / (ma - mi + 1e-4)
+    sel = whole_df.groupby(val_cols)[fit_cols]
     if type == 'std':
         res = 2 * sel.std()
     elif type == 'var':
