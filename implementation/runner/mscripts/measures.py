@@ -28,13 +28,12 @@ def event1_1(input_df, run=None):
     DT_end = df.DT.iat[len(df)-1]
     nomov = df[df.DT - DT_end < eps]
     light = nomov.DiLS.map(lambda x: x.split('-')[1].split('_')[1])
-    TG = ((light == 'Green').astype(int).diff() == 1)
-    event = light[TG.cumsum() > 0]
-    return len(event)
+    event = (light == 'Green')
+    return event.sum()
 
 def event1_2(input_df, run=None):
     eps = 1
-    psi = 20
+    psi = 10
     if run is None:
         df = input_df
     else:
@@ -43,19 +42,9 @@ def event1_2(input_df, run=None):
         return 0
     DT_end = df.DT.iat[len(df)-1]
     nomov = df[df.DT - DT_end < eps]
-    bv = nomov[nomov.DfV < psi]
-    indices = []
-    sigma = 2
-    ma = 0
-    for i, e in enumerate(bv.DfV.values[::-1]):
-        if ma - e > sigma:
-            indices.append(i)
-        if e > ma:
-            ma = e
-    indices = bv.index[::-1][indices][::-1]
-    if len(indices) == 0:
-        return 0
-    event = (df.loc[indices[0]:].DiLS.map(lambda x: x.split('-')[1].split('_')[1]) == 'Green')
+    light = nomov.DiLS.map(lambda x: x.split('-')[1].split('_')[1])
+    TG = ((light == 'Green').astype(int).diff() == 1)
+    event = light[(TG.cumsum() > 0) & (nomov.DfV < psi)] == 'Green'
     return event.sum()
 
 def event1_3(input_df, run=None):
@@ -69,7 +58,7 @@ def event1_3(input_df, run=None):
     nomov = df[df.DT - DT_end < eps]
     max_std = 0
     for i in nomov.index:
-        kstd = df.DfC[max(0, i-k): i+k].std()
+        kstd = df.DfC[max(0, i-k): i].std()
         if kstd > max_std:
             max_std = kstd
     return max_std
@@ -141,10 +130,13 @@ def event6(input_df):
     if input_df.DiLS.hasnans:
         return 0
     edge = input_df.DiLS.map(lambda x: x.split('-')[1].split('_')[1]).map({'Red': 0, 'Yellow': 1, 'Green': 2}).diff().fillna(0) != 0
+    ends = input_df.run.diff().fillna(0) != 0
     run_len = input_df.groupby('run')['DE'].count()
     if edge.sum() == 0:
         return 0
-    light_change = [[e for e in x if e != 0] for x in input_df[edge].groupby('run').groups.values()]
+    if input_df.DiLS.hasnans:
+        return 0
+    light_change = list(map(list, input_df[edge & ~ends].groupby('run').groups.values()))
     max_len = max(map(len, light_change))
     padded = [(x + [m for i in range(max_len - len(x))]) for x, m in zip(light_change, run_len)]
     events = np.array(padded)
