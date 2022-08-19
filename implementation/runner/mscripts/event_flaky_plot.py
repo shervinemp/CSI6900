@@ -8,47 +8,48 @@ from utils import val_cols
 if __name__ == '__main__':
     whole_df = pd.read_csv(sys.argv[1], index_col=0)
     ind_dfs = []
-    ind_cols = [f'event{i}' for i in ['1_1', '1_2', '1_3', '1_4', '2_1', '2_2', '3']] + ['idx']
+    ind_cols = [f'event{i}' for i in ['1_1', '1_2', '1_3', '1_4', '2_1', '2_2', '3']]
     cum_dfs = []
     cum_cols = ['event4', 'event5', 'event6']
     run_thresh = 10
     whole_df.iloc[:, 12] *= 10
     whole_df = whole_df.set_index(val_cols)[whole_df.groupby(val_cols).run.count() >= run_thresh].reset_index()
-    csv_files = map(lambda x: str(list(x))+'.csv', whole_df.groupby(val_cols).size().index)
+    new_index = whole_df.groupby(val_cols).size().index.unique()
+    csv_files = map(lambda x: str(list(x))+'.csv', new_index)
     for idx, f in enumerate(csv_files):
         input_df = pd.read_csv(f, index_col=0)
         runs = input_df['run'].max()
         for i in range(runs + 1):
             arr = [
+                idx,
                 event1_1(input_df, i),
                 event1_2(input_df, i),
                 event1_3(input_df, i),
                 event1_4(input_df, i),
                 event2_1(input_df, i),
                 event2_2(input_df, i),
-                event3(input_df, i),
-                idx
+                event3(input_df, i)
             ]
             ind_dfs.append(arr)
         arr = [
+            idx,
             event4(input_df),
             event5(input_df),
-            event6(input_df)
+            event6(input_df),
         ]
         cum_dfs.append(arr)
-    sel = pd.DataFrame(ind_dfs, columns=ind_cols).groupby('idx')
+    sel = pd.DataFrame(ind_dfs, columns=['idx'] + ind_cols).groupby('idx')
     ind_mean_df = sel.mean().add_suffix('_mean')
     ind_min_df = sel.min().add_suffix('_min')
     ind_max_df = sel.max().add_suffix('_max')
     ind_df = pd.concat([ind_mean_df, ind_min_df, ind_max_df], axis=1)
-    ind_df.index = ind_df.index.astype(int)
-    cum_df = pd.DataFrame(cum_dfs, columns=cum_cols, index=ind_df.index)
+    cum_df = pd.DataFrame(cum_dfs, columns=['idx'] + cum_cols).set_index('idx')
     event_df = pd.merge(ind_df, cum_df, left_index=True, right_index=True)
     sf_df = soft_flaky(whole_df).add_suffix('_soft')
     sf_rang_df = soft_flaky(whole_df, type='range').add_suffix('_rang')
     hf_df = hard_flaky(whole_df).add_suffix('_hard')
     flaky_df = pd.concat([sf_df, sf_rang_df, hf_df], axis=1)
-    flaky_df = flaky_df.reindex(whole_df.set_index(val_cols).index.unique()).reset_index(drop=True)
+    flaky_df = flaky_df.reindex(new_index).reset_index(drop=True)
     measure_df = pd.merge(event_df, flaky_df, left_index=True, right_index=True)
     measure_df.to_csv('measure.csv')
 

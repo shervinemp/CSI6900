@@ -292,6 +292,7 @@ if __name__ == '__main__':
     for i, _ in enumerate(fit_cols):
         ax = axes[i]
         g = sns.lineplot(x='index', y='vals', hue='acc', data=df[df.fit_id==i], ax=ax)
+        ax.legend(labels=['flaky', 'noflaky'])
     plt.savefig('rs_plot.png')
     plt.close()
     plt.tight_layout()
