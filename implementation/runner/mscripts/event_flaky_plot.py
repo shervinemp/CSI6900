@@ -53,7 +53,7 @@ if __name__ == '__main__':
     measure_df = pd.merge(event_df, flaky_df, left_index=True, right_index=True)
     measure_df.to_csv('measure.csv')
     measure_rep_df = pd.merge(ind_df, flaky_df, left_index=True, right_index=True)
-    measure_df.to_csv('measure_rep.csv')
+    measure_rep_df.to_csv('measure_rep.csv')
 
     rows, cols = len(flaky_df.columns), len(event_df.columns)
     fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))
