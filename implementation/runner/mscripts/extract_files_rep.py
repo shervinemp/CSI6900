@@ -4,8 +4,8 @@ import numpy as np
 import sys
 
 if __name__ == '__main__':
-    files = glob('[*')
-    files = list(filter(lambda x: x.split('.')[-1]!='csv', files))
+    files = glob('[[]*')
+    files = list(filter(lambda x: x.split('.')[-1] not in ['csv', 'ogv', 'log'], files))
     files_ = list(map(lambda x: x.split('_')[0], files))
     cnt = Counter(files_)
     if len(sys.argv) == 2:

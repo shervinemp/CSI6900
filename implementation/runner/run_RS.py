@@ -9,8 +9,8 @@ from runner import run_single_scenario
 from RS import *
 
 RECORD = False
-MAX_ITERS = 50
-REPEATS = 1
+MAX_ITERS = 152
+REPEATS = 10
 TOTAL_TIME_BUDGET = None
 
 class Pylot_caseStudy():
@@ -38,7 +38,7 @@ class Pylot_caseStudy():
 
 
 def run(i,archive):
-    size = 6
+    size = 1
     lb = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 1, 0]
     ub = [4, 4, 0, 2, 2, 2, 2, 2, 2, 3, 7, 2, 5, 2, 2, 3]
     # 0 Road type
