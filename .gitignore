@@ -13,3 +13,4 @@ __pycache__/
 
 # Built Visual Studio Code Extensions
 *.vsix
+implementation/runner/e2e.conf

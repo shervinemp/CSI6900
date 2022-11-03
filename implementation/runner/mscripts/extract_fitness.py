@@ -3,7 +3,7 @@ from glob import glob
 
 
 if __name__ == '__main__':
-	mfiles = glob('[*')
+	mfiles = glob('[[]*')
 	with open('extracted_fitnesses.log', 'wt') as out_file:
 		for e in mfiles:
 			if e[-4:] not in ('.ogv', '.log', '.csv'):
