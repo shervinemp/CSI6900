@@ -78,7 +78,7 @@ if __name__ == '__main__':
     for i, group in enumerate(groups):
         group = sorted(group, key=lambda k: random_.random())
         for fit_id in fit_col_ids:
-            for agg_mode in ('first', 'min', 'mean'):
+            for agg_mode in ('mean', 'min'):
                 # Get the minimum fitness values for the group of experiments
                 if agg_mode == 'min':
                     fitness_values = moving_minimum(map(partial(get_min_fitness_value, target_fit=fit_id), group))
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # Concatenate the list of dataframes into a single dataframe
     df = pd.concat(res_grps, axis=0, ignore_index=True)
 
-    ylim_dict = dict(zip(fit_cols, [(-0.5, 1), (-1, 1), (0, 1), (0, 1)]))
+    ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
     # Set the font scale for seaborn plots
     sns.set(font_scale=1.0)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         ax = axes[i]
 
         # Create a line plot of the data for the fitness value
-        g = sns.lineplot(x='index', y='vals', hue='agg_mode', legend='brief',
+        g = sns.lineplot(x='index', y='vals', hue='agg_mode', legend=False,
                          data=df[df.fit_id == fid], ax=ax)
         
         ax.set_xlim((0, 50))
@@ -123,6 +123,7 @@ if __name__ == '__main__':
 
         # Set the legend labels
         # ax.legend(labels=['RS', 'RS-10rep', 'test'])
+    fig.legend(labels=['RS', 'RSwRep'])
     # Tightly adjust the layout of the plots
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     # Save the plot to a file
@@ -143,8 +144,8 @@ if __name__ == '__main__':
         
         ax = axes[i]
         
-        # Get the data for first fitness values
-        df_nonmin = df_[df_.agg_mode == 'first'].reset_index().drop('agg_mode', axis=1).copy()
+        # Get the data for mean fitness values
+        df_nonmin = df_[df_.agg_mode == 'mean'].reset_index().drop('agg_mode', axis=1).copy()
         
         # Calculate the difference between non-minimum and minimum fitness values
         df_nonmin['vals'] = df_nonmin['vals'] - df_[df_.agg_mode == 'min'].reset_index()['vals']
@@ -171,14 +172,14 @@ if __name__ == '__main__':
     plt.close()
 
     last_iter = df[df['index'] == ITER_COUNT-1]
-    a_, b_, c_ = (last_iter[last_iter.agg_mode == 'first'],
-                  last_iter[last_iter.agg_mode == 'min'],
-                  last_iter[last_iter.agg_mode == 'mean'])
+    # a_ = last_iter[last_iter.agg_mode == 'first']
+    b_ = last_iter[last_iter.agg_mode == 'min']
+    c_ = last_iter[last_iter.agg_mode == 'mean']
     
-    df_end = pd.concat([a_, b_, c_], axis=0, ignore_index=True)
+    df_end = pd.concat([b_, c_], axis=0, ignore_index=True)
 
-    print('avg first:')
-    pprint(list(zip(fit_labels, a_.groupby("fit_id").mean()['vals'])))
+    # print('avg first:')
+    # pprint(list(zip(fit_labels, a_.groupby("fit_id").mean()['vals'])))
 
     print('avg min:')
     pprint(list(zip(fit_labels, b_.groupby("fit_id").mean()['vals'])))
@@ -186,13 +187,13 @@ if __name__ == '__main__':
     print('avg mean:')
     pprint(list(zip(fit_labels, c_.groupby("fit_id").mean()['vals'])))
 
-    print("min-first")
-    pprint({l: wilcoxon((a_[a_.fit_id == fid].set_index('grp')['vals'] - b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
-           for l, fid in zip(fit_labels, fit_col_ids)})
+    # print("min-first")
+    # pprint({l: wilcoxon((a_[a_.fit_id == fid].set_index('grp')['vals'] - b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
+    #        for l, fid in zip(fit_labels, fit_col_ids)})
     
-    pprint({l: VD_A((a_[a_.fit_id == fid].set_index('grp')['vals']).to_list(),
-                    (b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
-           for l, fid in zip(fit_labels, fit_col_ids)})
+    # pprint({l: VD_A((a_[a_.fit_id == fid].set_index('grp')['vals']).to_list(),
+    #                 (b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
+    #        for l, fid in zip(fit_labels, fit_col_ids)})
 
     print("min-mean")
     pprint({l: wilcoxon((c_[c_.fit_id == fid].set_index('grp')['vals'] - b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
@@ -216,7 +217,7 @@ if __name__ == '__main__':
         # Set the x and y labels for the plot
         ax.set(xlabel="aggregation", ylabel=fit_labels[i])
 
-        # ax.set_xticklabels(['1_rep', '10_rep'])
+        ax.set_xticklabels(['RSwRep', 'RS'])
     # Tightly adjust the layout of the plots
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     # Save the plot to a file

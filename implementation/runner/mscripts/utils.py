@@ -1,7 +1,16 @@
 from functools import cached_property
 from glob import glob
 import pandas as pd
+import numpy as np
+import seaborn as sns
+import scipy.stats as ss
+import matplotlib.pyplot as plt
 import re
+
+import itertools as it
+
+from bisect import bisect_left
+from typing import List
 
 val_cols = [
         "Road type",
@@ -24,7 +33,10 @@ val_cols = [
 
 # fit_cols = ['DE', 'DfC', 'DfV', 'DfP', 'DfM', 'DT']
 fit_cols = [f'f{i}' for i in [1, 2, 4, 5]]
-fit_labels = ['Dist Center', 'Dist Vehicle', 'Dist Static', 'Dist Travel']
+fit_labels = ['Distance from center lane (dfc)',
+              'Distance from non-ego vehicles (dfv)',
+              'Distance from static objects (dfo)',
+              'Distance travelled (dt)']
 
 def get_fv_files(fv):
         fv_ = [x for x in fv]
@@ -77,17 +89,6 @@ class CSVData:
         def size(self):
                 # Return the number of indices of the DataFrame
                 return len(self.indices)
-
-import itertools as it
-
-from bisect import bisect_left
-from typing import List
-
-import numpy as np
-import pandas as pd
-import scipy.stats as ss
-
-from pandas import Categorical
 
 
 def VD_A(treatment: List[float], control: List[float]):
@@ -158,7 +159,7 @@ def VD_A_DF(data, val_col: str = None, group_col: str = None, sort=True):
 
     x = data.copy()
     if sort:
-        x[group_col] = Categorical(x[group_col], categories=x[group_col].unique(), ordered=True)
+        x[group_col] = pd.Categorical(x[group_col], categories=x[group_col].unique(), ordered=True)
         x.sort_values(by=[group_col, val_col], ascending=True, inplace=True)
 
     groups = x[group_col].unique()
@@ -176,3 +177,72 @@ def VD_A_DF(data, val_col: str = None, group_col: str = None, sort=True):
         'estimate': ef[:, 0],
         'magnitude': ef[:, 1]
     })
+
+def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, colors=None, legend_labels=None, bin_range=None, ax=None, return_type='axes'):
+    # Set the seaborn style
+    sns.set()
+    if isinstance(data, pd.DataFrame):
+        # Get the data
+        y_data = data[y]
+        hue_data = data[hue]
+        # Get the unique values in the hue column
+        hue_vals = hue_data.unique()
+        n_classes = len(hue_vals)
+    else:
+        # Get the data
+        y_data = data
+        hue_vals = range(len(data))
+        n_classes = len(hue_vals)
+    if not colors:
+        # Generate a list of colors
+        colors = sns.color_palette("deep", n_classes)
+    if not bin_range:
+        # Calculate the step for the position of the bars
+        step = 1
+        # Set the position of the bars on the x-axis
+        pos = range(len(y_data[0]))
+    else:
+        # Calculate the step for the position of the bars
+        step = (bin_range[1] - bin_range[0]) / len(y_data[0])
+        # Set the position of the bars on the x-axis
+        pos = np.linspace(bin_range[0], bin_range[1], len(y_data[0]), endpoint=False)
+    # Calculate the width of the bars
+    width = step / n_classes
+    if ax is None:
+        # Create the plot
+        fig, ax = plt.subplots()
+    for i, h in enumerate(hue_vals):
+        if isinstance(data, pd.DataFrame):
+            # Get the data for this hue value
+            y_hue = y_data[hue_data == h]
+        else:
+            y_hue = y_data[i]
+        # Plot the bars
+        ax.bar(pos, y_hue, color=colors[i], width=width, align='edge', edgecolor='white', alpha=0.7, linewidth=1)
+        pos = [p + width for p in pos]
+    # Set the x-axis range
+    if bin_range:
+        ax.set_xlim(bin_range)
+    # Add a legend
+    if legend_labels:
+        # Check if the number of labels matches the number of hue values
+        if len(legend_labels) != len(hue_vals):
+            raise ValueError("Number of legend labels does not match number of hue values")
+    elif isinstance(data, pd.DataFrame):
+        # Use the hue values as the legend labels
+        legend_labels = hue_vals
+    ax.legend(legend_labels)
+    # Add labels and title
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    if ylabel:
+        ax.set_ylabel(ylabel)
+    if title:
+        ax.set_title(title)
+    # Use seaborn's despine function to remove the top and right spines
+    sns.despine()
+    
+    if return_type == 'axes':
+        return ax
+    elif return_type == 'fig':
+        return fig
