@@ -12,7 +12,7 @@ import itertools as it
 from bisect import bisect_left
 from typing import List
 
-val_cols = [
+in_cols = [
         "Road type",
         "Road ID",
         "Scenario Length", 
@@ -57,33 +57,33 @@ def separate_suffix(string):
 
 class CSVData:
         def __init__(self, filepath, min_run=0, max_run=None):
-                self._data = pd.read_csv(filepath, index_col=0)
+                self.df = pd.read_csv(filepath, index_col=0)
                 # Set the "Road type" to "task" columns as the index of the DataFrame
-                self._data.set_index(list(self._data.columns[:-7]), inplace=True)
+                self.df.set_index(in_cols, inplace=True)
                 # Group the _data by the index and apply a custom function to filter the groups
                 if min_run > 0:
-                        self._data = self.group_by_index().filter(lambda group: group.shape[0] >= min_run)
+                        self.df = self.group_by_index().filter(lambda group: group.shape[0] >= min_run)
                 if max_run is not None:
-                        self._data = self.filter_max_run(max_run)
+                        self.df = self.filter_max_run(max_run)
                 # Sort the index
-                self._data.sort_index(inplace=True)
+                self.df.sort_index(inplace=True)
         
         def filter_max_run(self, max_run):
-                return self._data[self._data.run <= max_run]
+                return self.df[self.df.run <= max_run]
 
         def get_f_values(self, values):
                 # Select rows using the specified values as the index
-                _data = self._data.loc[tuple(values)]
-                # Extract the _data for the "f1" to "f6" columns and return as a list of tuples
-                return [tuple(row) for row in _data[_data.columns[-7:-1]].values]
+                data = self.df.loc[tuple(values)]
+                # Extract the data for the "f1" to "f6" columns and return as a list of tuples
+                return [tuple(row) for row in data[data.columns[-7:-1]].values]
         
         def group_by_index(self):
-                return self._data.groupby(level=self._data.index.names)
+                return self.df.groupby(level=self.df.index.names)
         
         @cached_property
         def indices(self):
                 # Convert the index to a list of tuples
-                return self._data.index.unique().to_flat_index()
+                return self.df.index.unique().to_flat_index()
         
         @property
         def size(self):
@@ -231,7 +231,8 @@ def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, c
     elif isinstance(data, pd.DataFrame):
         # Use the hue values as the legend labels
         legend_labels = hue_vals
-    ax.legend(legend_labels)
+    if legend_labels:
+        ax.legend(legend_labels)
     # Add labels and title
     if xlabel:
         ax.set_xlabel(xlabel)

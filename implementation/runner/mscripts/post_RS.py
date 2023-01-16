@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import wilcoxon
 from data_handler import get_values
-from utils import CSVData, VD_A, fit_cols, fit_labels, separate_suffix
+from utils import CSVData, VD_A, in_cols, fit_cols, fit_labels, separate_suffix
 
 # Seed for the pseudorandom number generator
 SEED = 0
@@ -16,100 +16,70 @@ SEED = 0
 ITER_COUNT = 50
 
 # Maximum number of groups to create (if not None)
-RS_REPEAT = 19
+RS_REPEAT = 20
 
 # Maximum number of experiment repeats
 EXP_REPEAT = 10
 
 HIST_SIZE = 25
 
-# Read in a list of experiments from a file specified as the first command line argument
-data = CSVData(sys.argv[1], min_run=EXP_REPEAT)
-print(f"#Entries: {data.size}")
-
-# TODO: sampling with replacement for different groups?
-
-# Create a pseudorandom number generator with the specified seed
-random_ = np.random.RandomState(seed=SEED)
-
-def get_min_fitness_value(e, target_fit):
-    # Get the list of fitness values for the experiments
-    exp_f_values = data.get_f_values(e)[:EXP_REPEAT]
-    # Return the minimum fitness value from the list of files
-    return min(f_v[target_fit] for f_v in exp_f_values)
-
-def get_mean_fitness_value(e, target_fit):
-    # Get the list of fitness values for the experiments
-    exp_f_values = data.get_f_values(e)[:EXP_REPEAT]
-    # Return the minimum fitness value from the list of files
-    return sum(f_v[target_fit] for f_v in exp_f_values) / len(exp_f_values)
-
-# Create a function to get the first fitness value for a single experiment
-def get_first_fitness_value(e, target_fit):
-    # Get the first fitness values for the experiment
-    exp_f_values = data.get_f_values(e)[0]
-    # Return the first fitness value from the file
-    return exp_f_values[target_fit]
-
-# Define a function to compute the moving minimum of an iterable
-def moving_minimum(iterable):
-    # Yield the index and value of the minimum element in the iterable, as well as the index and value of the current element for each iteration
-    min_value = np.inf
-    for i, v in enumerate(iterable):
-        if v < min_value:
-            min_index, min_value = i, v
-        yield min_index, min_value
-
 # If this script is being run as the main script
 if __name__ == '__main__':
+    # Create a pseudorandom number generator with the specified seed
+    random_ = np.random.RandomState(seed=SEED)
+
+    # Read in a list of experiments from a file specified as the first command line argument
+    data = CSVData(sys.argv[1], min_run=EXP_REPEAT)
+    print(f"#Entries: {data.size}")
+
     exps = list(data.indices)
 
     # Shuffle the list of experiments using the pseudorandom number generator
     random_.shuffle(exps)
 
+    ngroups = len(exps)//ITER_COUNT if RS_REPEAT is None else RS_REPEAT
+
     # Divide the shuffled list of experiments into groups of size `ITER_COUNT` using list slicing
-    groups = [exps[i: i+ITER_COUNT] for i in range(0, len(exps) if RS_REPEAT is None else RS_REPEAT*ITER_COUNT, ITER_COUNT)]
-
-    # Get the column indices for the fitness values specified in the fit_cols variable
-    fit_col_ids = [x - 1 for x in map(separate_suffix, fit_cols)]
-
-    # Create a list of dataframes containing the results for each group of experiments and fitness value
-    res_grps = []
-    for i, group in enumerate(groups):
-        group = sorted(group, key=lambda k: random_.random())
-        for fit_id in fit_col_ids:
-            for agg_mode in ('mean', 'min'):
-                # Get the minimum fitness values for the group of experiments
-                if agg_mode == 'min':
-                    fitness_values = moving_minimum(map(partial(get_min_fitness_value, target_fit=fit_id), group))
-                elif agg_mode == 'first':
-                    fitness_values = moving_minimum(map(partial(get_first_fitness_value, target_fit=fit_id), group))
-                elif agg_mode == 'mean':
-                    fitness_values = moving_minimum(map(partial(get_mean_fitness_value, target_fit=fit_id), group))
-
-                # Create a dataframe with the results for the group of experiments and fitness value
-                df = pd.DataFrame({'vals': [val[1] for val in fitness_values]})
-                # Add the group, fit_id, and use_min columns to the dataframe
-                df = df.reset_index().assign(grp=i, fit_id=fit_id, agg_mode=agg_mode)
-                # Add the dataframe to the list of results
-                res_grps.append(df)
-
-    # Concatenate the list of dataframes into a single dataframe
-    df = pd.concat(res_grps, axis=0, ignore_index=True)
+    steps = [x*ITER_COUNT for x in range(ngroups)]
+    group_ids = [exps[beg: end] for beg, end in zip(steps, steps[1:])]
+    group_ids_df = pd.DataFrame([[*x, i] for i, g in enumerate(group_ids) for x in g],
+                          columns=[*in_cols, 'group_id']) \
+                          .set_index(in_cols)
+    
+    groups_df = group_ids_df.join(data.df.groupby(in_cols) \
+                                         .sample(EXP_REPEAT, random_state=random_),
+                                  how='left')
+    groups_df['x'] = 1
+    groups_df['x'] = groups_df.groupby(in_cols)['x'].cumsum()
+    
+    val_grp = groups_df.set_index('x', append=True).groupby(in_cols)[fit_cols]
+    values_df = pd.concat([val_grp.min().assign(agg_mode='min'),
+                           val_grp.mean().assign(agg_mode='mean'),
+                           val_grp.first().assign(agg_mode='first')])
+    pprint(values_df.index.names)
+    grp_val_df = group_ids_df.join(values_df.reset_index().set_index(in_cols, drop=True))
+    pprint(grp_val_df.columns)
+    
+    res_grps = grp_val_df.reset_index(drop=True) \
+                         .set_index('x') \
+                         .groupby(['group_id', 'agg_mode']) \
+                         .cummin()
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
     # Set the font scale for seaborn plots
     sns.set(font_scale=1.0)
 
+    pprint(res_grps)
+
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
-    for i, (fid, col) in enumerate(zip(fit_col_ids, fit_cols)):
+    for i, col in enumerate(fit_cols):
         ax = axes[i]
 
         # Create a line plot of the data for the fitness value
-        g = sns.lineplot(x='index', y='vals', hue='agg_mode', legend=False,
-                         data=df[df.fit_id == fid], ax=ax)
+        g = sns.lineplot(x='x', y=col, hue='agg_mode', legend=False,
+                         data=res_grps, ax=ax)
         
         ax.set_xlim((0, 50))
         ax.set_ylim(*ylim_dict[col])
@@ -135,28 +105,23 @@ if __name__ == '__main__':
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
 
     # Create an array of histogram bin edges
-    hist_bins = np.linspace(0, len(groups[0]), HIST_SIZE + 1)
+    hist_bins = np.linspace(0, len(group_ids[0]), HIST_SIZE + 1)
+    
+    # Calculate the difference between non-minimum and minimum fitness values
+    diff = values_df[values_df.agg_mode == 'mean'][fit_cols] \
+           .subtract(values_df[values_df.agg_mode == 'min'][fit_cols])
+    
+    # Add a box column to the data based on the index of the data point
+    diff['box'] = diff['x'].apply(
+        lambda x: next(i for i, b in enumerate(hist_bins) if x < b) - 1
+    )
 
     # Iterate over the fitness values
-    for i, (fid, col) in enumerate(zip(fit_col_ids, fit_cols)):
-        # Create a copy of the data for the fitness value
-        df_ = df[df.fit_id == fid].copy()
-        
+    for i, col in enumerate(fit_cols):        
         ax = axes[i]
         
-        # Get the data for mean fitness values
-        df_nonmin = df_[df_.agg_mode == 'mean'].reset_index().drop('agg_mode', axis=1).copy()
-        
-        # Calculate the difference between non-minimum and minimum fitness values
-        df_nonmin['vals'] = df_nonmin['vals'] - df_[df_.agg_mode == 'min'].reset_index()['vals']
-        
-        # Add a box column to the data based on the index of the data point
-        df_nonmin['box'] = df_nonmin['index'].apply(
-            lambda x: next(i for i, b in enumerate(hist_bins) if x < b) - 1
-        )
-        
         # Create a box plot of the data
-        sns.boxplot(x='box', y='vals', data=df_nonmin, showmeans=True, ax=ax)
+        sns.boxplot(x='box', y=col, data=diff, showmeans=True, ax=ax)
         
         # Set the x and y labels for the plot
         ax.set(xlabel='iteration', ylabel=fit_labels[i])
@@ -171,10 +136,10 @@ if __name__ == '__main__':
     # Close the plot
     plt.close()
 
-    last_iter = df[df['index'] == ITER_COUNT-1]
+    last_iter = res_grps.groupby(['group_id', 'x']).last()
     # a_ = last_iter[last_iter.agg_mode == 'first']
-    b_ = last_iter[last_iter.agg_mode == 'min']
-    c_ = last_iter[last_iter.agg_mode == 'mean']
+    b_ = last_iter[last_iter.agg_mode == 'min'].set_index('group_id')
+    c_ = last_iter[last_iter.agg_mode == 'mean'].set_index('group_id')
     
     df_end = pd.concat([b_, c_], axis=0, ignore_index=True)
 
@@ -182,10 +147,10 @@ if __name__ == '__main__':
     # pprint(list(zip(fit_labels, a_.groupby("fit_id").mean()['vals'])))
 
     print('avg min:')
-    pprint(list(zip(fit_labels, b_.groupby("fit_id").mean()['vals'])))
+    pprint(b_[fit_cols].mean())
 
     print('avg mean:')
-    pprint(list(zip(fit_labels, c_.groupby("fit_id").mean()['vals'])))
+    pprint(c_[fit_cols].mean())
 
     # print("min-first")
     # pprint({l: wilcoxon((a_[a_.fit_id == fid].set_index('grp')['vals'] - b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
@@ -196,12 +161,11 @@ if __name__ == '__main__':
     #        for l, fid in zip(fit_labels, fit_col_ids)})
 
     print("min-mean")
-    pprint({l: wilcoxon((c_[c_.fit_id == fid].set_index('grp')['vals'] - b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
-           for l, fid in zip(fit_labels, fit_col_ids)})
+    pprint({l: wilcoxon((c_[col] - b_[col]).to_list()) \
+           for l, col in zip(fit_labels, fit_cols)})
     
-    pprint({l: VD_A((c_[c_.fit_id == fid].set_index('grp')['vals']).to_list(),
-                    (b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
-           for l, fid in zip(fit_labels, fit_col_ids)})
+    pprint({l: VD_A(c_[col].to_list(), b_[col].to_list()) \
+           for l, col in zip(fit_labels, fit_cols)})
     
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(4 * len(fit_cols), 4))
@@ -211,8 +175,7 @@ if __name__ == '__main__':
         ax = axes[i]
         
         # Create a histogram of the data
-        sns.boxplot(data=df_end[df_end.fit_id == separate_suffix(col)-1],
-                    x='agg_mode', y='vals', orient='v', showmeans=True, ax=ax)
+        sns.boxplot(data=df_end, x='agg_mode', y=col, orient='v', showmeans=True, ax=ax)
         
         # Set the x and y labels for the plot
         ax.set(xlabel="aggregation", ylabel=fit_labels[i])
