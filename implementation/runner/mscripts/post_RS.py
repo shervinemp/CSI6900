@@ -37,18 +37,16 @@ if __name__ == '__main__':
 
     # Divide the shuffled list of experiments into groups of size `ITER_COUNT` using list slicing
     s = [x*ITER_COUNT for x in range(ngroups+1)]
-    groups = pd.concat([data._df.loc[exps[beg:end]] \
-                                .groupby(in_cols) \
-                                .sample(EXP_REPEAT, random_state=random_) \
-                                .assign(group_id=i) \
+    df = data._df.groupby(in_cols).sample(EXP_REPEAT, random_state=random_)
+    groups = pd.concat([df.loc[exps[beg:end]].assign(group_id=i) \
                         for i, (beg, end) in enumerate(zip(s, s[1:]))]) \
                .set_index('group_id', append=True)
     
     val_grp = groups.groupby(['group_id', *in_cols])[fit_cols]
     values_df = pd.concat([val_grp.min().assign(agg_mode='min'),
                            val_grp.mean().assign(agg_mode='mean')]) \
-                  .groupby('group_id').sample(frac=1)
-    values_df['x'] = values_df.assign(x=1).groupby(['group_id', 'agg_mode'])['x'].cumsum() - 1
+                  .groupby('group_id').sample(frac=1, random_state=random_)
+    values_df['x'] = values_df.groupby(['group_id', 'agg_mode']).cumcount()
     
     res_grps = values_df.set_index(['x', 'agg_mode'], append=True) \
                         .groupby(['group_id', 'agg_mode']) \
