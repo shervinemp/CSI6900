@@ -1,4 +1,3 @@
-from functools import partial
 from pprint import pprint
 import sys
 import numpy as np
