@@ -48,7 +48,7 @@ if __name__ == '__main__':
                    for x1, x2 in t}
     
     # t2 = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4]
-    t2 = np.linspace(-3, 3, 7, endpoint=True) * df[fit_cols].std()
+    t2 = np.linspace(-3, 3, 7, endpoint=True)
     
     # first_min = first.min()
     # first_delta_max = first.max() - first.min()
@@ -57,13 +57,13 @@ if __name__ == '__main__':
     df_mean = df[fit_cols].mean()
 
     df_delta_max = df[fit_cols].max() - df_min
-    first_thresh = {x: pd.concat([(mean <= x + df_mean)[fit_cols].sum(),
+    first_thresh = {x: pd.concat([(mean <= x + df_std * df_mean)[fit_cols].sum(),
                                   d / data.size], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                     for x in t2}
     
     # mi_min = mi.min()
     # mi_delta_max = mi.max() - mi.min()
-    mi_thresh = {x: pd.concat([(mi <= x + df_mean)[fit_cols].sum(),
+    mi_thresh = {x: pd.concat([(mi <= x + df_std * df_mean)[fit_cols].sum(),
                                d / data.size], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                  for x in t2}
 

@@ -30,47 +30,37 @@ if __name__ == '__main__':
 
     # Read in a list of experiments from a file specified as the first command line argument
     data = CSVData(sys.argv[1], min_run=EXP_REPEAT)
-    print(f"#Entries: {data.size}")
+    print(f"#Entries: {len(data)}")
 
-    exps = list(data.indices)
-
-    # Shuffle the list of experiments using the pseudorandom number generator
-    random_.shuffle(exps)
-
-    ngroups = len(exps)//ITER_COUNT if RS_REPEAT is None else RS_REPEAT
+    exps = data.indices[random_.permutation(len(data))]
+    ngroups = len(data)//ITER_COUNT if RS_REPEAT is None else RS_REPEAT
 
     # Divide the shuffled list of experiments into groups of size `ITER_COUNT` using list slicing
-    steps = [x*ITER_COUNT for x in range(ngroups)]
-    group_ids = [exps[beg: end] for beg, end in zip(steps, steps[1:])]
-    group_ids_df = pd.DataFrame([[*x, i] for i, g in enumerate(group_ids) for x in g],
-                          columns=[*in_cols, 'group_id']) \
-                          .set_index(in_cols)
+    s = [x*ITER_COUNT for x in range(ngroups+1)]
+    groups = pd.concat([data._df.loc[exps[beg:end]] \
+                                .groupby(in_cols) \
+                                .sample(EXP_REPEAT, random_state=random_) \
+                                .assign(group_id=i) \
+                        for i, (beg, end) in enumerate(zip(s, s[1:]))]) \
+               .set_index('group_id', append=True)
     
-    groups_df = group_ids_df.join(data.df.groupby(in_cols) \
-                                         .sample(EXP_REPEAT, random_state=random_),
-                                  how='left')
-    groups_df['x'] = 1
-    groups_df['x'] = groups_df.groupby(in_cols)['x'].cumsum()
-    
-    val_grp = groups_df.set_index('x', append=True).groupby(in_cols)[fit_cols]
+    val_grp = groups.groupby(['group_id', *in_cols])[fit_cols]
     values_df = pd.concat([val_grp.min().assign(agg_mode='min'),
                            val_grp.mean().assign(agg_mode='mean'),
-                           val_grp.first().assign(agg_mode='first')])
-    pprint(values_df.index.names)
-    grp_val_df = group_ids_df.join(values_df.reset_index().set_index(in_cols, drop=True))
-    pprint(grp_val_df.columns)
+                        #    val_grp.first().assign(agg_mode='first'),
+                           ]) \
+                  .groupby('group_id').sample(frac=1)
+    values_df['x'] = values_df.assign(x=1).groupby(['group_id', 'agg_mode'])['x'].cumsum() - 1
     
-    res_grps = grp_val_df.reset_index(drop=True) \
-                         .set_index('x') \
-                         .groupby(['group_id', 'agg_mode']) \
-                         .cummin()
+    res_grps = values_df.set_index(['x', 'agg_mode'], append=True) \
+                        .groupby(['group_id', 'agg_mode']) \
+                        .cummin() \
+                        .reset_index()
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
     # Set the font scale for seaborn plots
     sns.set(font_scale=1.0)
-
-    pprint(res_grps)
 
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
@@ -105,11 +95,12 @@ if __name__ == '__main__':
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
 
     # Create an array of histogram bin edges
-    hist_bins = np.linspace(0, len(group_ids[0]), HIST_SIZE + 1)
+    hist_bins = np.linspace(0, ITER_COUNT, HIST_SIZE + 1)
     
     # Calculate the difference between non-minimum and minimum fitness values
-    diff = values_df[values_df.agg_mode == 'mean'][fit_cols] \
-           .subtract(values_df[values_df.agg_mode == 'min'][fit_cols])
+    diff = res_grps[res_grps.agg_mode == 'mean'].set_index(['group_id', 'x'])[fit_cols] \
+           .subtract(res_grps[res_grps.agg_mode == 'min'].set_index(['group_id', 'x'])[fit_cols]) \
+           .reset_index()
     
     # Add a box column to the data based on the index of the data point
     diff['box'] = diff['x'].apply(
@@ -136,15 +127,15 @@ if __name__ == '__main__':
     # Close the plot
     plt.close()
 
-    last_iter = res_grps.groupby(['group_id', 'x']).last()
+    last_iter = res_grps.groupby(['group_id', 'agg_mode', 'x']).last().reset_index()
     # a_ = last_iter[last_iter.agg_mode == 'first']
-    b_ = last_iter[last_iter.agg_mode == 'min'].set_index('group_id')
-    c_ = last_iter[last_iter.agg_mode == 'mean'].set_index('group_id')
+    b_ = last_iter[last_iter.agg_mode == 'min']
+    c_ = last_iter[last_iter.agg_mode == 'mean']
     
-    df_end = pd.concat([b_, c_], axis=0, ignore_index=True)
+    df_end = pd.concat([b_, c_])
 
     # print('avg first:')
-    # pprint(list(zip(fit_labels, a_.groupby("fit_id").mean()['vals'])))
+    # pprint(a_[fit_cols].mean())
 
     print('avg min:')
     pprint(b_[fit_cols].mean())

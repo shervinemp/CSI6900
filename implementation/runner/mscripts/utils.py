@@ -57,25 +57,20 @@ def separate_suffix(string):
 
 class CSVData:
         def __init__(self, filepath, min_run=0, max_run=None):
-                self.df = pd.read_csv(filepath, index_col=0)
+                self._df = pd.read_csv(filepath, index_col=0)
                 # Set the "Road type" to "task" columns as the index of the DataFrame
-                self.df.set_index(in_cols, inplace=True)
+                self._df.set_index(in_cols, inplace=True)
                 # Group the _data by the index and apply a custom function to filter the groups
                 if min_run > 0:
-                        self.df = self.group_by_index().filter(lambda group: group.shape[0] >= min_run)
+                        self._df = self.group_by_index().filter(lambda group: group.shape[0] >= min_run)
                 if max_run is not None:
-                        self.df = self.filter_max_run(max_run)
+                        self._df = self._df[self._df.run <= max_run]
                 # Sort the index
-                self.df.sort_index(inplace=True)
+                self._df.sort_index(inplace=True)
         
-        def filter_max_run(self, max_run):
-                return self.df[self.df.run <= max_run]
-
-        def get_f_values(self, values):
-                # Select rows using the specified values as the index
-                data = self.df.loc[tuple(values)]
-                # Extract the data for the "f1" to "f6" columns and return as a list of tuples
-                return [tuple(row) for row in data[data.columns[-7:-1]].values]
+        @property
+        def df(self):
+            return self._df.copy()
         
         def group_by_index(self):
                 return self.df.groupby(level=self.df.index.names)
@@ -85,8 +80,7 @@ class CSVData:
                 # Convert the index to a list of tuples
                 return self.df.index.unique().to_flat_index()
         
-        @property
-        def size(self):
+        def __len__(self):
                 # Return the number of indices of the DataFrame
                 return len(self.indices)
 
