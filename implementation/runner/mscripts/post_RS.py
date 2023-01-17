@@ -152,7 +152,7 @@ if __name__ == '__main__':
     #        for l, fid in zip(fit_labels, fit_col_ids)})
 
     print("min-mean")
-    pprint({l: wilcoxon((c_[col] - b_[col]).to_list()) \
+    pprint({l: wilcoxon(c_[col].to_list(), b_[col].to_list()) \
            for l, col in zip(fit_labels, fit_cols)})
     
     pprint({l: VD_A(c_[col].to_list(), b_[col].to_list()) \
