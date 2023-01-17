@@ -60,9 +60,7 @@ if __name__ == '__main__':
 
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
-    for i, col in enumerate(fit_cols):
-        ax = axes[i]
-
+    for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a line plot of the data for the fitness value
         g = sns.lineplot(x='x', y=col, hue='agg_mode', legend=False,
                          data=res_grps, ax=ax)
@@ -73,7 +71,7 @@ if __name__ == '__main__':
         ax.set_xticks(range(0, 51, 10))
 
         # Set the x and y labels for the plot
-        ax.set(xlabel='iteration', ylabel=fit_labels[i])
+        ax.set(xlabel='iteration', ylabel=label)
 
         ax.margins(0)
     # Set the legend labels
@@ -102,14 +100,12 @@ if __name__ == '__main__':
     )
 
     # Iterate over the fitness values
-    for i, col in enumerate(fit_cols):        
-        ax = axes[i]
-        
+    for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a box plot of the data
         sns.boxplot(x='box', y=col, data=diff, showmeans=True, ax=ax)
         
         # Set the x and y labels for the plot
-        ax.set(xlabel='iteration', ylabel=fit_labels[i])
+        ax.set(xlabel='iteration', ylabel=label)
         
         # Set the x-axis tick labels
         ax.set_xticks([])
@@ -133,24 +129,22 @@ if __name__ == '__main__':
     pprint(c_[fit_cols].mean())
 
     print("min-mean")
-    pprint({l: wilcoxon(c_[col].to_list(), b_[col].to_list()) \
-           for l, col in zip(fit_labels, fit_cols)})
+    pprint({label: wilcoxon(c_[col].to_list(), b_[col].to_list()) \
+           for label, col in zip(fit_cols, fit_labels)})
     
-    pprint({l: VD_A(c_[col].to_list(), b_[col].to_list()) \
-           for l, col in zip(fit_labels, fit_cols)})
+    pprint({label: VD_A(c_[col].to_list(), b_[col].to_list()) \
+           for label, col in zip(fit_cols, fit_labels)})
     
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(4 * len(fit_cols), 4))
 
     # Iterate over the fitness values
-    for i, col in enumerate(fit_cols):
-        ax = axes[i]
-        
+    for ax, col, label in zip(axes, fit_cols, fit_labels):        
         # Create a histogram of the data
         sns.boxplot(data=df_end, x='agg_mode', y=col, orient='v', showmeans=True, ax=ax)
         
         # Set the x and y labels for the plot
-        ax.set(xlabel="aggregation", ylabel=fit_labels[i])
+        ax.set(xlabel="aggregation", ylabel=label)
 
         ax.set_xticklabels(['RSwRep', 'RS'])
     # Tightly adjust the layout of the plots
