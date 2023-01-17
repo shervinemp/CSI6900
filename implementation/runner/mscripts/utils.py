@@ -5,7 +5,6 @@ import numpy as np
 import seaborn as sns
 import scipy.stats as ss
 import matplotlib.pyplot as plt
-import re
 
 import itertools as it
 
