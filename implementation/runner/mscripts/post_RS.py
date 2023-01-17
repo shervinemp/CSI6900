@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import wilcoxon
 from data_handler import get_values
-from utils import CSVData, VD_A, in_cols, fit_cols, fit_labels, separate_suffix
+from utils import CSVData, VD_A, in_cols, fit_cols, fit_labels
 
 # Seed for the pseudorandom number generator
 SEED = 0
