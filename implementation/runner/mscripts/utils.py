@@ -31,7 +31,6 @@ in_cols = [
         "task"
 ]
 
-# fit_cols = ['DE', 'DfC', 'DfV', 'DfP', 'DfM', 'DT']
 fit_cols = [f'f{i}' for i in [1, 2, 4, 5]]
 fit_labels = ['Distance from center lane (dfc)',
               'Distance from non-ego vehicles (dfv)',
@@ -43,16 +42,6 @@ def get_fv_files(fv):
         fv_[-4] = fv_[-4] * 10
         return list(filter(lambda x: (x[-4] != '.' and x[-5] != '.'),
                            glob(f'[[]{", ".join(map(str, fv_))}[]]*')))
-
-def separate_suffix(string):
-        # Use a regular expression to match the last group of digits in the string
-        match = re.search(r'\d+$', string)
-        if match:
-                # Return the matched digits as a string
-                return int(match.group())
-        else:
-                # Return None if no digits were found
-                return None
 
 
 class CSVData:

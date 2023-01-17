@@ -9,7 +9,7 @@ from runner import run_single_scenario
 from RS import *
 
 RECORD = False
-MAX_ITERS = 152
+MAX_ITERS = 20
 REPEATS = 10
 TOTAL_TIME_BUDGET = None
 
