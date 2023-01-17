@@ -46,9 +46,7 @@ if __name__ == '__main__':
     
     val_grp = groups.groupby(['group_id', *in_cols])[fit_cols]
     values_df = pd.concat([val_grp.min().assign(agg_mode='min'),
-                           val_grp.mean().assign(agg_mode='mean'),
-                        #    val_grp.first().assign(agg_mode='first'),
-                           ]) \
+                           val_grp.mean().assign(agg_mode='mean')]) \
                   .groupby('group_id').sample(frac=1)
     values_df['x'] = values_df.assign(x=1).groupby(['group_id', 'agg_mode'])['x'].cumsum() - 1
     
@@ -80,9 +78,7 @@ if __name__ == '__main__':
         ax.set(xlabel='iteration', ylabel=fit_labels[i])
 
         ax.margins(0)
-
-        # Set the legend labels
-        # ax.legend(labels=['RS', 'RS-10rep', 'test'])
+    # Set the legend labels
     fig.legend(labels=['RS', 'RSwRep'])
     # Tightly adjust the layout of the plots
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -119,7 +115,6 @@ if __name__ == '__main__':
         
         # Set the x-axis tick labels
         ax.set_xticks([])
-        # ax.set_xticklabels([str(x)[:4] for x in hist_bins])
     # Tightly adjust the layout of the plots
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     # Save the plot to a file
@@ -128,28 +123,16 @@ if __name__ == '__main__':
     plt.close()
 
     last_iter = res_grps.groupby(['group_id', 'agg_mode', 'x']).last().reset_index()
-    # a_ = last_iter[last_iter.agg_mode == 'first']
     b_ = last_iter[last_iter.agg_mode == 'min']
     c_ = last_iter[last_iter.agg_mode == 'mean']
     
     df_end = pd.concat([b_, c_])
-
-    # print('avg first:')
-    # pprint(a_[fit_cols].mean())
 
     print('avg min:')
     pprint(b_[fit_cols].mean())
 
     print('avg mean:')
     pprint(c_[fit_cols].mean())
-
-    # print("min-first")
-    # pprint({l: wilcoxon((a_[a_.fit_id == fid].set_index('grp')['vals'] - b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
-    #        for l, fid in zip(fit_labels, fit_col_ids)})
-    
-    # pprint({l: VD_A((a_[a_.fit_id == fid].set_index('grp')['vals']).to_list(),
-    #                 (b_[b_.fit_id == fid].set_index('grp')['vals']).to_list()) \
-    #        for l, fid in zip(fit_labels, fit_col_ids)})
 
     print("min-mean")
     pprint({l: wilcoxon(c_[col].to_list(), b_[col].to_list()) \
