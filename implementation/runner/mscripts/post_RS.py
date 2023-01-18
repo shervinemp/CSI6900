@@ -36,7 +36,9 @@ if __name__ == '__main__':
     groups = df.assign(group_id=np.repeat(random_.permutation(len(data)) // ITER_COUNT, EXP_REPEAT)[:len(df)]) \
                .set_index('group_id', append=True) \
                .groupby(level='group_id') \
-               .filter(lambda g: len(g) >= ITER_COUNT * EXP_REPEAT)
+               .filter(lambda g: len(g) >= ITER_COUNT * EXP_REPEAT) \
+               .groupby(level='group_id') \
+               .sample(frac=1, random_state=random_)
     
     val_grp = groups.groupby(level=['group_id', *in_cols])[fit_cols]
     values_df = pd.concat([
