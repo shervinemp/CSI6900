@@ -39,8 +39,10 @@ if __name__ == '__main__':
                .filter(lambda g: len(g) >= ITER_COUNT * EXP_REPEAT)
     
     val_grp = groups.groupby(level=['group_id', *in_cols])[fit_cols]
-    values_df = pd.concat([val_grp.min().assign(agg_mode='min'),
-                           val_grp.mean().assign(agg_mode='mean')]) \
+    values_df = pd.concat([
+                           val_grp.min().assign(agg_mode='min'),
+                           val_grp.mean().assign(agg_mode='mean'),
+                           ]) \
                   .set_index('agg_mode', append=True)
     values_df['x'] = values_df.groupby(level=['group_id', 'agg_mode']).cumcount()
     
@@ -71,7 +73,7 @@ if __name__ == '__main__':
 
         ax.margins(0)
     # Set the legend labels
-    fig.legend(labels=['RS', 'RSwRep'])
+    fig.legend(labels=['RSwRep', 'RS'])
     # Tightly adjust the layout of the plots
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     # Save the plot to a file
