@@ -33,16 +33,18 @@ if __name__ == '__main__':
     df = data._df.groupby(level=in_cols) \
                  .sample(EXP_REPEAT, random_state=random_)
     
-    groups = df.assign(group_id=np.arange(len(df)) // ITER_COUNT // EXP_REPEAT) \
-               .set_index('group_id', append=True)
+    groups = df.assign(group_id=np.repeat(random_.permutation(len(data)) // ITER_COUNT, EXP_REPEAT)[:len(df)]) \
+               .set_index('group_id', append=True) \
+               .groupby(level='group_id') \
+               .filter(lambda g: len(g) >= ITER_COUNT * EXP_REPEAT)
     
     val_grp = groups.groupby(level=['group_id', *in_cols])[fit_cols]
     values_df = pd.concat([val_grp.min().assign(agg_mode='min'),
                            val_grp.mean().assign(agg_mode='mean')]) \
-                  .groupby(level='group_id').sample(frac=1, random_state=random_)
-    values_df['x'] = values_df.groupby(['group_id', 'agg_mode']).cumcount()
+                  .set_index('agg_mode', append=True)
+    values_df['x'] = values_df.groupby(level=['group_id', 'agg_mode']).cumcount()
     
-    res_grps = values_df.set_index(['x', 'agg_mode'], append=True) \
+    res_grps = values_df.set_index('x', append=True) \
                         .groupby(level=['group_id', 'agg_mode']) \
                         .cummin() \
                         .reset_index()
