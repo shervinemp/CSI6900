@@ -30,26 +30,23 @@ if __name__ == '__main__':
     data = CSVData(sys.argv[1], min_run=EXP_REPEAT)
     print(f"#Entries: {len(data)}")
 
+    n_scenarios = ITER_COUNT * RS_REPEAT
     df = data._df.groupby(level=in_cols) \
-                 .sample(EXP_REPEAT, random_state=random_)
+                 .sample(EXP_REPEAT, random_state=random_) \
+                 .loc[random_.choice(data.indices, n_scenarios, replace=False)]
     
-    groups = df.assign(group_id=np.repeat(random_.permutation(len(data)) // ITER_COUNT, EXP_REPEAT)[:len(df)]) \
-               .set_index('group_id', append=True) \
-               .groupby(level='group_id') \
-               .filter(lambda g: len(g) >= ITER_COUNT * EXP_REPEAT) \
-               .groupby(level='group_id') \
-               .sample(frac=1, random_state=random_)
+    groups = df.copy()
+    groups['group_id'], groups['x'] = divmod(np.repeat(random_.permutation(n_scenarios), EXP_REPEAT), ITER_COUNT)
+    groups.set_index(['group_id', 'x'], append=True, inplace=True)
     
-    val_grp = groups.groupby(level=['group_id', *in_cols])[fit_cols]
+    val_grp = groups.groupby(level=['group_id', 'x'])[fit_cols]
     values_df = pd.concat([
                            val_grp.min().assign(agg_mode='min'),
                            val_grp.mean().assign(agg_mode='mean'),
                            ]) \
                   .set_index('agg_mode', append=True)
-    values_df['x'] = values_df.groupby(level=['group_id', 'agg_mode']).cumcount()
     
-    res_grps = values_df.set_index('x', append=True) \
-                        .groupby(level=['group_id', 'agg_mode']) \
+    res_grps = values_df.groupby(level=['group_id', 'agg_mode']) \
                         .cummin() \
                         .reset_index()
 
