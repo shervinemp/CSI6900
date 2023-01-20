@@ -1,14 +1,13 @@
-from fcntl import F_SEAL_SHRINK
 import re
 import sys
+
 import pandas as pd
+
 from utils import in_cols
 
 regex = re.compile("\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} \[([\d\s,]+)\]:((?:[+-]?(?:[0-9]*[.])?[0-9]+,?)+)")
 
 arrs = None
-
-AUTO_GROUP = True
 
 def create_dict(V, F):
     d = {}
@@ -36,9 +35,7 @@ def get_case(x):
     return tuple(a)
 
 if __name__ == '__main__':
-    df = pd.concat([parse_file(addr).assign(run=i) for i, addr in enumerate(sys.argv[1:])], axis=0)
-    if AUTO_GROUP is True:
-        df['run'] = df.groupby(in_cols).cumcount()
+    df = pd.concat(map(parse_file, sys.argv[1:]), axis=0)
     if arrs is not None:
         df['case'] = df.apply(lambda x: mlookup(get_case(x)), axis=1)
     get_dir = lambda x: '/'.join(x.split('/')[:-1]) + '/'

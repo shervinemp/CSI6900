@@ -1,11 +1,13 @@
-from pprint import pprint
 import sys
+from pprint import pprint
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import wilcoxon
-from utils import CSVData, VD_A, in_cols, fit_cols, fit_labels
+
+from utils import VD_A, CSVData, fit_cols, fit_labels, in_cols
 
 # Seed for the pseudorandom number generator
 SEED = 0
