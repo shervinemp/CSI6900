@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from data_handler import get_values
-from utils import CSVData, fit_cols, fit_labels, separate_suffix, neg_histplot
+from utils import CSVData, in_cols, fit_cols, fit_labels, neg_histplot
 
 # Seed for the pseudorandom number generator
 SEED = 0
@@ -18,8 +18,8 @@ COUNT = 1000
 EXP_REPEAT = 10
 
 # Read in a list of experiments from a file specified as the first command line argument
-data = CSVData(sys.argv[1], min_run=EXP_REPEAT, max_run=EXP_REPEAT)
-print(f"#Entries: {data.size}")
+data = CSVData(sys.argv[1], min_run=EXP_REPEAT)
+print(f"#Entries: {len(data)}")
 
 # TODO: sampling with replacement for different groups?
 
@@ -28,43 +28,38 @@ random_ = np.random.RandomState(seed=SEED)
 
 # If this script is being run as the main script
 if __name__ == '__main__':
-    df = data._data
+    df = data._df[fit_cols]
 
-    mi = data.group_by_index().min()
-    ma = data.group_by_index().max()
-    mean = data.group_by_index().mean()
-    first = data.group_by_index().first()
+    scenarios = df.groupby(level=in_cols)
+    mi = scenarios.min()
+    ma = scenarios.max()
+    mean = scenarios.mean()
+    var = scenarios.var()
 
-    var = data.group_by_index().var()
     delta = ma - mi
 
-    hard_flaky = ((mi <= 0) & (ma > 0))[fit_cols].sum() / data.size
+    hard_flaky = ((mi <= 0) & (ma > 0)).sum() / len(data)
 
     t = list(zip((r:=[-1, 0., 0.01, 0.05, 0.1, 0.2, 0.4, 0.7, 1]), r[1:]))
     delta_max = delta.max()
     delta_flaky = {(x1, x2): pd.concat([(d:=( (delta > x1 * delta_max) & \
-                                              (delta <= x2 * delta_max) )[fit_cols].sum()),
-                                        d / data.size], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
+                                              (delta <= x2 * delta_max) ).sum()),
+                                        d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                    for x1, x2 in t}
     
-    # t2 = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4]
-    t2 = np.linspace(-3, 3, 7, endpoint=True)
+    t2 = np.linspace(-.2, .2, 5, endpoint=True)
     
-    # first_min = first.min()
-    # first_delta_max = first.max() - first.min()
-    df_min = df[fit_cols].min()
-    df_std = df[fit_cols].std()
-    df_mean = df[fit_cols].mean()
+    df_min = df.min()
+    df_mean = df.mean()
+    df_std = df.std()
 
     df_delta_max = df[fit_cols].max() - df_min
-    first_thresh = {x: pd.concat([(mean <= x + df_std * df_mean)[fit_cols].sum(),
-                                  d / data.size], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
+    first_thresh = {x: pd.concat([(mean <= x * df_delta_max)[fit_cols].sum(),
+                                  d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                     for x in t2}
     
-    # mi_min = mi.min()
-    # mi_delta_max = mi.max() - mi.min()
-    mi_thresh = {x: pd.concat([(mi <= x + df_std * df_mean)[fit_cols].sum(),
-                               d / data.size], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
+    mi_thresh = {x: pd.concat([(mi <= x * df_delta_max)[fit_cols].sum(),
+                               d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                  for x in t2}
 
     print("Hard flaky:")
@@ -78,18 +73,6 @@ if __name__ == '__main__':
 
     print("Min thresh:")
     pprint(mi_thresh)
-    # range_space = [np.linspace(-3 * df_std[f], 3 * df_std[f], 21, endpoint=True) for f in fit_cols]
-
-    # first_thresh = {}
-    # mi_thresh = {}
-
-    # for rang, f in zip(range_space, fit_cols):
-    #     t2 = list(zip(rang, rang[1:]))
-    #     first_thresh[f] = [(d:=((first[f] > x) & (first[f] <= y)).sum()) / data.size \
-    #                        for x, y in t2]
-        
-    #     mi_thresh[f] = [(d:=((mi[f] > x) & (mi[f] <= y)).sum()) / data.size \
-    #                     for x, y in t2]
 
     # Set the font scale for seaborn plots
     sns.set(font_scale=1.0)
@@ -97,7 +80,7 @@ if __name__ == '__main__':
 
     bin_range = (-3, 1)
     bins = np.linspace(*bin_range, 16, endpoint=True)
-    diff_ = (mean - mi) / df_std
+    diff_ = (mean - mi) / df_delta_max
     data_ = [ [((diff_[f] > a) & (diff_[f] <= b)).sum() \
               for a, b in zip(bins, bins[1:])] \
             for f in fit_cols]
@@ -148,9 +131,6 @@ if __name__ == '__main__':
                         keys=['delta','var'], 
                         names=['metric', 'fitness'])
 
-    # Get the column indices for the fitness values specified in the fit_cols variable
-    fit_col_ids = [x - 1 for x in map(separate_suffix, fit_cols)]
-
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(2, len(fit_cols), figsize=(5 * len(fit_cols), 8))
 
@@ -190,19 +170,15 @@ if __name__ == '__main__':
     df_list = []
 
     for i in range(1, 11):
-        filtered = data.filter_max_run(i)
-        min_df = filtered.groupby(level=filtered.index.names).min().assign(rep=i)
+        filtered = data.groupby(levels=in_cols).sample(i, random_state=random_)
+        min_df = filtered.groupby(levels=in_cols).min().assign(rep=i)
         df_list.append(min_df)
 
     df_ = pd.concat(df_list, axis=0, ignore_index=True)
 
-    # pd.merge(df_list[0][fit_cols], df_list[1][fit_cols],
-    #          left_index=True, right_index=True,
-    #         suffixes=['_1rep', '_10rep']).to_csv('test.csv')
-
     pprint(df_.groupby('rep').mean()[fit_cols])
     pprint({f: wilcoxon((df_list[-1][f] - df_list[0][f]).to_list()) \
-           for f in fit_cols})
+            for f in fit_cols})
     
     # Iterate over the fitness values
     for i, col in enumerate(fit_cols):

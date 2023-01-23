@@ -46,24 +46,20 @@ def get_fv_files(fv):
 
 
 class CSVData:
-    def __init__(self, filepath, min_run=0, max_run=None):
+    def __init__(self, filepath, min_run=0):
         self._df = pd.read_csv(filepath, index_col=0)
         # Set the "Road type" to "task" columns as the index of the DataFrame
         self._df.set_index(in_cols, inplace=True)
         # Group the _data by the index and apply a custom function to filter the groups
         if min_run > 0:
-                self._df = self.group_by_index().filter(lambda group: group.shape[0] >= min_run)
-        if max_run is not None:
-                self._df = self._df[self._df.run <= max_run]
+                self._df = self._df.groupby(level=in_cols) \
+                               .filter(lambda group: group.shape[0] >= min_run)
         # Sort the index
         self._df.sort_index(inplace=True)
     
     @property
     def df(self) -> pd.DataFrame:
         return self._df.copy()
-    
-    def group_by_index(self) -> DataFrameGroupBy:
-        return self.df.groupby(level=self.df.index.names)
     
     @cached_property
     def indices(self, to_list=False) -> list:
