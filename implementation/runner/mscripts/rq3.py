@@ -61,16 +61,16 @@ def trainModels(X, y, class_labels=None, *, cv=5, **kwargs):
 
 def smartRandomSearch(X, models=None, method='or', l_end=MAX_REPEAT):
     if models is None:
-        w = np.logspace(0, l_end - 1, num=l_end, base=1/2)
+        w = np.logspace(0, l_end-1, num=l_end, base=1/2)
         w = pd.DataFrame(w[np.newaxis, :].repeat(len(X), axis=0), columns=range(l_end))    
     else:
-        pred = np.array([m.predict(x) >= 0.5 for m, x in zip(models, fit_range(X, l_end - 1))]).T
+        pred = np.array([m.predict(x) >= 0.5 for m, x in zip(models, fit_range(X, l_end-1))]).T
         pred_df = pd.DataFrame(pred, columns=range(1, l_end))
         if method == 'and':
             w = pred_df.cumprod(axis=1)
         elif method == 'or':
             w = (~pred_df).cumprod(axis=1)
-        w[0] = True
+        w[0] = 1
         w.sort_index(axis=1, inplace=True)
     t = []
     for i in range(l_end):
@@ -81,10 +81,10 @@ def smartRandomSearch(X, models=None, method='or', l_end=MAX_REPEAT):
         t.append(X_melt)
     df = pd.concat(t, axis=1)
     n_cols = list(range(l_end))
-    w_df = pd.concat([w / w.mean(axis=1)] * len(fit_cols), axis=0)
-    df[n_cols] = df[n_cols] * w_df
-    df['min'] = df[n_cols].min(axis=1)
-    df['mean'] = df[n_cols].mean(axis=1)
+    w_df = pd.concat([w / w.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0)
+    df['min'] = (df[n_cols].cummin(axis=1) * w_df).mean(axis=1)
+    df['mean'] = (df[n_cols] * w_df).mean(axis=1)
+
     df['f'] = df['0_fit'].apply(lambda x: x[:-2])
     df = pd.pivot(df, columns='f', values=['min', 'mean'])
     cnt = w_df.sum(axis=1)
