@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     n_scenarios = ITER_COUNT * RS_REPEAT
     df = data._df.groupby(level=in_cols) \
-                 .sample(EXP_REPEAT, random_state=random_) \
+                 .sample(EXP_REPEAT, random_state=SEED) \
                  .loc[random_.choice(data.indices, n_scenarios, replace=False)]
     
     groups = df.copy()

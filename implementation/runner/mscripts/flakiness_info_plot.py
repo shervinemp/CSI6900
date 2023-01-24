@@ -28,7 +28,10 @@ random_ = np.random.RandomState(seed=SEED)
 
 # If this script is being run as the main script
 if __name__ == '__main__':
-    df = data._df[fit_cols]
+    
+    df = data._df[fit_cols].groupby(level=in_cols) \
+                           .sample(EXP_REPEAT, random_state=SEED) \
+                           .loc[random_.choice(data.indices, COUNT, replace=False)]
 
     scenarios = df.groupby(level=in_cols)
     mi = scenarios.min()
@@ -47,18 +50,14 @@ if __name__ == '__main__':
                                         d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                    for x1, x2 in t}
     
-    t2 = np.linspace(-.2, .2, 5, endpoint=True)
-    
-    df_min = df.min()
-    df_mean = df.mean()
-    df_std = df.std()
+    t2 = np.linspace(-.1, .1, 3, endpoint=True)
 
-    df_delta_max = df[fit_cols].max() - df_min
-    first_thresh = {x: pd.concat([(mean <= x * df_delta_max)[fit_cols].sum(),
+    df_range_delta = df.max() - df.min()
+    mean_thresh = {x: pd.concat([(mean <= x * df_range_delta).sum(),
                                   d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                     for x in t2}
     
-    mi_thresh = {x: pd.concat([(mi <= x * df_delta_max)[fit_cols].sum(),
+    mi_thresh = {x: pd.concat([(mi <= x * df_range_delta).sum(),
                                d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                  for x in t2}
 
@@ -68,8 +67,8 @@ if __name__ == '__main__':
     print("Delta flaky:")
     pprint(delta_flaky)
 
-    print("First thresh:")
-    pprint(first_thresh)
+    print("Mean thresh:")
+    pprint(mean_thresh)
 
     print("Min thresh:")
     pprint(mi_thresh)
@@ -80,7 +79,7 @@ if __name__ == '__main__':
 
     bin_range = (-3, 1)
     bins = np.linspace(*bin_range, 16, endpoint=True)
-    diff_ = (mean - mi) / df_delta_max
+    diff_ = (mean - mi) / df_range_delta
     data_ = [ [((diff_[f] > a) & (diff_[f] <= b)).sum() \
               for a, b in zip(bins, bins[1:])] \
             for f in fit_cols]
@@ -102,7 +101,7 @@ if __name__ == '__main__':
     # Close the plot
     plt.close()
 
-    diff = (mean - mi) / df_std
+    diff = (mean - mi) / df.std()
     
     mean_melt = mean.melt(value_vars=fit_cols, var_name="fit_id",
                           value_name="mean_vals", ignore_index=False).set_index(["fit_id"], append=True)
@@ -170,8 +169,8 @@ if __name__ == '__main__':
     df_list = []
 
     for i in range(1, 11):
-        filtered = data.groupby(levels=in_cols).sample(i, random_state=random_)
-        min_df = filtered.groupby(levels=in_cols).min().assign(rep=i)
+        filtered = df.groupby(level=in_cols).sample(i, random_state=random_)
+        min_df = filtered.groupby(level=in_cols).min().assign(rep=i)
         df_list.append(min_df)
 
     df_ = pd.concat(df_list, axis=0, ignore_index=True)
