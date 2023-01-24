@@ -53,11 +53,11 @@ if __name__ == '__main__':
     t2 = np.linspace(-.1, .1, 3, endpoint=True)
 
     df_range_delta = df.max() - df.min()
-    mean_thresh = {x: pd.concat([(mean <= x * df_range_delta).sum(),
+    mean_thresh = {x: pd.concat([(d:=(mean <= x * df_range_delta).sum()),
                                   d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                     for x in t2}
     
-    mi_thresh = {x: pd.concat([(mi <= x * df_range_delta).sum(),
+    mi_thresh = {x: pd.concat([(d:=(mi <= x * df_range_delta).sum()),
                                d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                  for x in t2}
 
