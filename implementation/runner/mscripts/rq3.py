@@ -17,6 +17,7 @@ from utils import CSVData, enum_cols, fit_cols, fit_labels, in_cols
 SEED = 0
 EXP_REPEAT = 10
 COUNT = 1000
+MAX_REPEAT = 4
 
 random_ = np.random.RandomState(seed=SEED)
 
@@ -43,7 +44,7 @@ def trainMLP(X, y, *, cv=5, **kwargs):
 
 def fit_range(X, l_end=EXP_REPEAT):
     for l in range(l_end):
-        dcols = [f"{f}_{i}" for f, i in product(fit_cols, range(l, EXP_REPEAT))]
+        dcols = [f"{f}_{i}" for f, i in product(fit_cols, range(l+1, EXP_REPEAT))]
         yield X.drop(X.columns.intersection(dcols), axis=1) \
                .sample(frac=1, random_state=random_)
 
@@ -51,44 +52,42 @@ def trainModels(X, y, class_labels=None, *, cv=5, **kwargs):
     if class_labels is None:
         class_labels = y
     models = []
-    for X_ in fit_range(X, 4):
+    for X_ in fit_range(X, MAX_REPEAT):
         X_b, y_b = balance(X_, y, class_labels)
         scores, desc = trainDecisionTree(X_b, y_b, cv=cv, **kwargs)
         f1s = scores["test_f1"]
         models.append(scores['estimator'][np.argmax(f1s)])
     return models
 
-def smartRandomSearch(X, models=None, method='or'):
-    l_end = 4
+def smartRandomSearch(X, models=None, method='or', l_end=MAX_REPEAT):
     if models is None:
-        if method == 'and':
-            w = np.logspace(1, l_end, num=l_end, base=1/2)
-        elif method == 'or':
-            w = 1 - np.logspace(1, l_end, num=l_end, base=1/2)
+        w = np.logspace(0, l_end - 1, num=l_end, base=1/2)
         w = pd.DataFrame(w[np.newaxis, :].repeat(len(X), axis=0), columns=range(l_end))    
     else:
-        pred = np.array([m.predict(x) >= 0.5 for m, x in zip(models, fit_range(X, l_end))]).T
-        pred_df = pd.DataFrame(pred, columns=range(l_end))
+        pred = np.array([m.predict(x) >= 0.5 for m, x in zip(models, fit_range(X, l_end - 1))]).T
+        pred_df = pd.DataFrame(pred, columns=range(1, l_end))
         if method == 'and':
             w = pred_df.cumprod(axis=1)
         elif method == 'or':
-            w = (pred_df.cumsum(axis=1) == 1).loc[:, ::-1].cumsum(axis=1).loc[:, ::-1]
-    
+            w = (~pred_df).cumprod(axis=1)
+        w[0] = True
+        w.sort_index(axis=1, inplace=True)
     t = []
     for i in range(l_end):
         value_vars = [f"{f}_{i}" for f in fit_cols]
         var_name = f"{i}_fit"
         X_melt = X.melt(value_vars=value_vars, var_name=var_name,
-                         value_name=i, ignore_index=False)
+                        value_name=i, ignore_index=False)
         t.append(X_melt)
     df = pd.concat(t, axis=1)
     n_cols = list(range(l_end))
-    df[n_cols] = df[n_cols]* pd.concat([w] * len(fit_cols), axis=0)
+    w_df = pd.concat([w / w.mean(axis=1)] * len(fit_cols), axis=0)
+    df[n_cols] = df[n_cols] * w_df
     df['min'] = df[n_cols].min(axis=1)
     df['mean'] = df[n_cols].mean(axis=1)
     df['f'] = df['0_fit'].apply(lambda x: x[:-2])
     df = pd.pivot(df, columns='f', values=['min', 'mean'])
-    cnt = (w * range(l_end)).mean(axis=1)
+    cnt = w_df.sum(axis=1)
     
     return df, cnt
 
