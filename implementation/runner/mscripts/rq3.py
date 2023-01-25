@@ -60,8 +60,10 @@ def trainModels(X, y, class_labels=None, *, cv=5, **kwargs):
     return models
 
 def smartRandomSearch(X, models=None, method='or', l_end=MAX_REPEAT):
+    if method not in ('or', 'and'):
+        raise ValueError(f"Method")
     if models is None:
-        w = np.logspace(0, l_end-1, num=l_end, base=1/2)
+        w = np.logspace(0, l_end-1, num=l_end, base=1/2) # Same weights for 'or' and 'and' methods.
         w = pd.DataFrame(w[np.newaxis, :].repeat(len(X), axis=0), columns=range(l_end))    
     else:
         pred = np.array([m.predict(x) >= 0.5 for m, x in zip(models, fit_range(X, l_end-1))]).T
