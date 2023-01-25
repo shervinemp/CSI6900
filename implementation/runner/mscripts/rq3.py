@@ -71,7 +71,10 @@ def smartRandomSearch(X, models=None, method='or', l_end=MAX_REPEAT):
         elif method == 'or':
             w = (~pred_df).cumprod(axis=1)
         w[0] = 1
-        w.sort_index(axis=1, inplace=True)
+        w[l_end] = 0
+        w = w.sort_index(axis=1) \
+             .diff(periods=-1, axis=1) \
+             .drop(columns=[l_end])
     t = []
     for i in range(l_end):
         value_vars = [f"{f}_{i}" for f in fit_cols]
@@ -80,10 +83,10 @@ def smartRandomSearch(X, models=None, method='or', l_end=MAX_REPEAT):
                         value_name=i, ignore_index=False)
         t.append(X_melt)
     df = pd.concat(t, axis=1)
-    n_cols = list(range(l_end))
     w_df = pd.concat([w / w.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0)
-    df['min'] = (df[n_cols].cummin(axis=1) * w_df).mean(axis=1)
-    df['mean'] = (df[n_cols] * w_df).mean(axis=1)
+    df_vals = df[range(l_end)]
+    df['min'] = (df_vals.cummin(axis=1) * w_df).mean(axis=1)
+    df['mean'] = (df_vals.cumsum(axis=1) / range(len(fit_cols)) * w_df).mean(axis=1)
 
     df['f'] = df['0_fit'].apply(lambda x: x[:-2])
     df = pd.pivot(df, columns='f', values=['min', 'mean'])
