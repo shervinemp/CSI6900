@@ -14,6 +14,8 @@ from sklearn.tree import DecisionTreeClassifier
 
 from utils import CSVData, enum_cols, fit_cols, fit_labels, in_cols
 
+log.basicConfig(level=log.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 SEED = 0
 EXP_REPEAT = 10
 COUNT = 1000
@@ -45,8 +47,7 @@ def trainMLP(X, y, *, cv=5, **kwargs):
 def fit_range(X, l_end=EXP_REPEAT):
     for l in range(l_end):
         dcols = [f"{f}_{i}" for f, i in product(fit_cols, range(l+1, EXP_REPEAT))]
-        yield X.drop(X.columns.intersection(dcols), axis=1) \
-               .sample(frac=1, random_state=random_)
+        yield X.drop(X.columns.intersection(dcols), axis=1)
 
 def trainModels(X, y, class_labels=None, *, cv=5, **kwargs):
     if class_labels is None:
@@ -59,24 +60,27 @@ def trainModels(X, y, class_labels=None, *, cv=5, **kwargs):
         models.append(scores['estimator'][np.argmax(f1s)])
     return models
 
-def smartRandomSearch(X, models=None, method='or', l_end=MAX_REPEAT):
+def smartRandomSearch(X, models=None, method='or', l_end=MAX_REPEAT, p_thresh=0.5):
     if method not in ('or', 'and'):
         raise ValueError(f"Method")
     if models is None:
-        w = np.logspace(0, l_end-1, num=l_end, base=1/2) # Same weights for 'or' and 'and' methods.
-        w = pd.DataFrame(w[np.newaxis, :].repeat(len(X), axis=0), columns=range(l_end))    
+        if method == 'and':
+            w = np.logspace(1, l_end, num=l_end, base=p_thresh)
+        elif method == 'or':
+            w = np.logspace(1, l_end, num=l_end, base=1-p_thresh)
+        w = pd.DataFrame(w[np.newaxis, :].repeat(len(X), axis=0), columns=range(1, l_end))    
     else:
-        pred = np.array([m.predict(x) >= 0.5 for m, x in zip(models, fit_range(X, l_end-1))]).T
+        pred = np.array([m.predict(x) >= p_thresh for m, x in zip(models, fit_range(X, l_end-1))]).T
         pred_df = pd.DataFrame(pred, columns=range(1, l_end))
         if method == 'and':
             w = pred_df.cumprod(axis=1)
         elif method == 'or':
             w = (~pred_df).cumprod(axis=1)
-        w[0] = 1
-        w[l_end] = 0
-        w = w.sort_index(axis=1) \
-             .diff(periods=-1, axis=1) \
-             .drop(columns=[l_end])
+    w[0] = 1
+    w[l_end] = 0
+    w = w.sort_index(axis=1) \
+         .diff(periods=-1, axis=1) \
+         .drop(columns=[l_end])
     t = []
     for i in range(l_end):
         value_vars = [f"{f}_{i}" for f in fit_cols]
