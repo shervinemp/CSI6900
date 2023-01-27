@@ -24,6 +24,36 @@ EXP_REPEAT = 10
 HIST_SIZE = 25
 
 # If this script is being run as the main script
+def RS(df, n_iter=ITER_COUNT, n_scene=None, random_state=None):
+    df_ = df.copy()
+    indices = df_.index.unique().to_flat_index()
+
+    if n_scene is None:
+        n_scene = len(indices)
+    if random_state is None:
+        random_state = np.random.RandomState()
+    
+    df_ = df_.loc[random_state.choice(indices, n_scene, replace=False)]
+
+    repeats = df_.groupby(level=df_.index.names).size()
+    index_group = np.array([x for x, r in zip(random_state.permutation(n_scene), repeats) \
+                              for _ in range(r)])
+    df_['group_id'], df_['x'] = divmod(index_group, ITER_COUNT)
+    df_.set_index(['group_id', 'x'], append=True, inplace=True)
+    
+    val_grp = df_.groupby(level=['group_id', 'x'])
+    values_df = pd.concat([
+                           val_grp.min().assign(agg_mode='min'),
+                           val_grp.mean().assign(agg_mode='mean'),
+                           ]) \
+                  .set_index('agg_mode', append=True)
+    
+    res = values_df.groupby(level=['group_id', 'agg_mode']) \
+                   .cummin() \
+                   .reset_index()
+    
+    return res
+
 if __name__ == '__main__':
     # Create a pseudorandom number generator with the specified seed
     random_ = np.random.RandomState(seed=SEED)
@@ -32,25 +62,11 @@ if __name__ == '__main__':
     data = CSVData(sys.argv[1], min_run=EXP_REPEAT)
     print(f"#Entries: {len(data)}")
 
-    n_scenarios = ITER_COUNT * RS_REPEAT
+    n_scene = ITER_COUNT * RS_REPEAT
     df = data._df.groupby(level=in_cols) \
-                 .sample(EXP_REPEAT, random_state=SEED) \
-                 .loc[random_.choice(data.indices, n_scenarios, replace=False)]
+                 .sample(EXP_REPEAT, random_state=SEED)
     
-    groups = df.copy()
-    groups['group_id'], groups['x'] = divmod(np.repeat(random_.permutation(n_scenarios), EXP_REPEAT), ITER_COUNT)
-    groups.set_index(['group_id', 'x'], append=True, inplace=True)
-    
-    val_grp = groups.groupby(level=['group_id', 'x'])[fit_cols]
-    values_df = pd.concat([
-                           val_grp.min().assign(agg_mode='min'),
-                           val_grp.mean().assign(agg_mode='mean'),
-                           ]) \
-                  .set_index('agg_mode', append=True)
-    
-    res_grps = values_df.groupby(level=['group_id', 'agg_mode']) \
-                        .cummin() \
-                        .reset_index()
+    res_grps = RS(df[fit_cols], n_iter=ITER_COUNT, random_state=random_, n_scene=n_scene)
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
