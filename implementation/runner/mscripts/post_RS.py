@@ -1,3 +1,4 @@
+import functools
 import sys
 from pprint import pprint
 
@@ -26,11 +27,12 @@ HIST_SIZE = 25
 
 # If this script is being run as the main script
 def RS(df, n_iter=ITER_COUNT, randomize=True, random_state=None):
-    df_ = df.copy()
-    indices = df_.index.unique().to_flat_index()
 
     if random_state is None:
         random_state = np.random.RandomState()
+    
+    df_ = df.copy()
+    cols = df.columns
     
     if randomize is True:
         df_ = df_.loc[df.index.unique().to_series().sample(frac=1, random_state=random_state)]
@@ -42,15 +44,12 @@ def RS(df, n_iter=ITER_COUNT, randomize=True, random_state=None):
     df_.set_index(['group_id', 'x'], append=True, inplace=True)
     
     val_grp = df_.groupby(level=['group_id', 'x'])
-    values_df = pd.concat([
-                           val_grp.min().assign(agg_mode='min'),
-                           val_grp.mean().assign(agg_mode='mean'),
-                           ]) \
-                  .set_index('agg_mode', append=True)
+    values_df = pd.merge(val_grp.min(), val_grp.mean(),
+                         left_index=True, right_index=True)
+    values_df.columns = pd.MultiIndex.from_product([('min', 'mean'), df.columns])
     
-    res = values_df.groupby(level=['group_id', 'agg_mode']) \
-                   .cummin() \
-                   .reset_index()
+    res = values_df.groupby(level=['group_id']) \
+                   .cummin()
     
     return res
 
@@ -65,7 +64,13 @@ if __name__ == '__main__':
     n_scene = ITER_COUNT * RS_REPEAT
     df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=n_scene, random_state=SEED)
     
-    res_grps = RS(df[fit_cols], n_iter=ITER_COUNT, random_state=random_)
+    rs_res = RS(df[fit_cols], n_iter=ITER_COUNT, random_state=random_)
+    rs_res = rs_res.T \
+                   .unstack(level=0) \
+                   .T \
+                   .reset_index(level=2) \
+                   .rename(columns={'level_2': 'agg_mode'}) \
+                   .reset_index()
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
@@ -77,7 +82,7 @@ if __name__ == '__main__':
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a line plot of the data for the fitness value
         g = sns.lineplot(x='x', y=col, hue='agg_mode', legend=False,
-                         data=res_grps, ax=ax)
+                         data=rs_res, ax=ax)
         
         ax.set_xlim((0, 50))
         ax.set_ylim(*ylim_dict[col])
@@ -104,8 +109,8 @@ if __name__ == '__main__':
     hist_bins = np.linspace(0, ITER_COUNT, HIST_SIZE + 1)
     
     # Calculate the difference between non-minimum and minimum fitness values
-    diff = res_grps[res_grps.agg_mode == 'mean'].set_index(['group_id', 'x'])[fit_cols] \
-           .subtract(res_grps[res_grps.agg_mode == 'min'].set_index(['group_id', 'x'])[fit_cols]) \
+    diff = rs_res[rs_res.agg_mode == 'mean'].set_index(['group_id', 'x'])[fit_cols] \
+           .subtract(rs_res[rs_res.agg_mode == 'min'].set_index(['group_id', 'x'])[fit_cols]) \
            .reset_index()
     
     # Add a box column to the data based on the index of the data point
@@ -130,7 +135,7 @@ if __name__ == '__main__':
     # Close the plot
     plt.close()
 
-    last_iter = res_grps.groupby(['group_id', 'agg_mode', 'x']).last().reset_index()
+    last_iter = rs_res.groupby(['group_id', 'agg_mode', 'x']).last().reset_index()
     b_ = last_iter[last_iter.agg_mode == 'min']
     c_ = last_iter[last_iter.agg_mode == 'mean']
     
