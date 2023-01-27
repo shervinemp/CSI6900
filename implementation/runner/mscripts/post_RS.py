@@ -7,7 +7,8 @@ import pandas as pd
 import seaborn as sns
 from scipy.stats import wilcoxon
 
-from utils import VD_A, CSVData, fit_cols, fit_labels, in_cols
+from data_utils import CSVData, fit_cols, fit_labels
+from vargha_delaney import VD_A
 
 # Seed for the pseudorandom number generator
 SEED = 0
@@ -24,16 +25,15 @@ EXP_REPEAT = 10
 HIST_SIZE = 25
 
 # If this script is being run as the main script
-def RS(df, n_iter=ITER_COUNT, n_scene=None, random_state=None):
+def RS(df, n_iter=ITER_COUNT, randomize=True, random_state=None):
     df_ = df.copy()
     indices = df_.index.unique().to_flat_index()
 
-    if n_scene is None:
-        n_scene = len(indices)
     if random_state is None:
         random_state = np.random.RandomState()
     
-    df_ = df_.loc[random_state.choice(indices, n_scene, replace=False)]
+    if randomize is True:
+        df_ = df_.loc[df.index.unique().to_series().sample(frac=1, random_state=random_state)]
 
     repeats = df_.groupby(level=df_.index.names).size()
     index_group = np.array([x for x, r in zip(random_state.permutation(n_scene), repeats) \
@@ -59,14 +59,13 @@ if __name__ == '__main__':
     random_ = np.random.RandomState(seed=SEED)
 
     # Read in a list of experiments from a file specified as the first command line argument
-    data = CSVData(sys.argv[1], min_run=EXP_REPEAT)
+    data = CSVData(sys.argv[1])
     print(f"#Entries: {len(data)}")
 
     n_scene = ITER_COUNT * RS_REPEAT
-    df = data._df.groupby(level=in_cols) \
-                 .sample(EXP_REPEAT, random_state=SEED)
+    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=n_scene, random_state=SEED)
     
-    res_grps = RS(df[fit_cols], n_iter=ITER_COUNT, random_state=random_, n_scene=n_scene)
+    res_grps = RS(df[fit_cols], n_iter=ITER_COUNT, random_state=random_)
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
