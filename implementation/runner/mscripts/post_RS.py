@@ -26,7 +26,7 @@ EXP_REPEAT = 10
 HIST_SIZE = 25
 
 # If this script is being run as the main script
-def RS(df, n_iter, agg_mode=('min', 'mean'), randomize=True, random_state=None):
+def RS(df, n_iter, agg_mode='mean', randomize=True, random_state=None):
     def agg_op(agg_mode, *, group):
         if agg_mode == 'first':
             return group.first()
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     n_scene = ITER_COUNT * RS_REPEAT
     df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=n_scene, random_state=SEED)
     
-    rs_res = RS(df[fit_cols], n_iter=ITER_COUNT, random_state=random_)
+    rs_res = RS(df[fit_cols], n_iter=ITER_COUNT, agg_mode=('min', 'mean'), random_state=random_)
     rs_res = rs_res.T \
                    .unstack(level=0) \
                    .T \
