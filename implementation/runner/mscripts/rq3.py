@@ -82,9 +82,9 @@ def plotRS(df, show=True):
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         sns.lineplot(data=df, x='x', y=col, hue='method', ax=ax)
-        plt.xlabel('Iteration')
-        plt.ylabel(label)
-        plt.legend(loc='lower left', fontsize=8)
+        ax.set_xlabel('Iteration')
+        ax.set_ylabel(label)
+        ax.legend(loc='lower left', fontsize=8)
     fig.tight_layout()
     plt.savefig(output_file, bbox_inches='tight')
     t1 = time.time()
