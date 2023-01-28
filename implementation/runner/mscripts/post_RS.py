@@ -52,7 +52,7 @@ def RS(df, n_iter, agg_mode='mean', randomize=True, random_state=None):
     if randomize is True:
         df_ = df_.loc[indices.to_series().sample(frac=1, random_state=random_state)]
 
-    repeats = df_.groupby(level=range(df_.index.nlevels)).size()
+    repeats = df_.groupby(level=list(range(df_.index.nlevels))).size()
     index_group = np.array([x for x, r in zip(random_state.permutation(len(indices)), repeats) \
                               for _ in range(r)])
     df_['group_id'], df_['x'] = divmod(index_group, n_iter)
