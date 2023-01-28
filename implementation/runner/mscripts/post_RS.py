@@ -1,5 +1,5 @@
-import functools
 import sys
+from functools import partial, reduce
 from pprint import pprint
 
 import matplotlib.pyplot as plt
@@ -26,27 +26,47 @@ EXP_REPEAT = 10
 HIST_SIZE = 25
 
 # If this script is being run as the main script
-def RS(df, n_iter=ITER_COUNT, randomize=True, random_state=None):
+def RS(df, n_iter, agg_mode=('min', 'mean'), randomize=True, random_state=None):
+    def agg_op(agg_mode, *, group):
+        if agg_mode == 'first':
+            return group.first()
+        elif agg_mode == 'min':
+            return group.min()
+        elif agg_mode == 'mean':
+            return group.mean()
+        else:
+            raise ValueError(f"agg_mode \"{agg_mode}\" not supported.")
 
-    if random_state is None:
-        random_state = np.random.RandomState()
+    if type(agg_mode) in (list, tuple):
+        multi_agg = True
+    else:
+        multi_agg = False
+        agg_mode = (agg_mode,)
+
+    if random_state is None or type(random_state) is int:
+        random_state = np.random.RandomState(random_state)
     
     df_ = df.copy()
-    cols = df.columns
+    indices = df.index.unique()
     
     if randomize is True:
-        df_ = df_.loc[df.index.unique().to_series().sample(frac=1, random_state=random_state)]
+        df_ = df_.loc[indices.to_series().sample(frac=1, random_state=random_state)]
 
-    repeats = df_.groupby(level=df_.index.names).size()
-    index_group = np.array([x for x, r in zip(random_state.permutation(n_scene), repeats) \
+    repeats = df_.groupby(level=range(df_.index.nlevels)).size()
+    index_group = np.array([x for x, r in zip(random_state.permutation(len(indices)), repeats) \
                               for _ in range(r)])
-    df_['group_id'], df_['x'] = divmod(index_group, ITER_COUNT)
+    df_['group_id'], df_['x'] = divmod(index_group, n_iter)
     df_.set_index(['group_id', 'x'], append=True, inplace=True)
     
     val_grp = df_.groupby(level=['group_id', 'x'])
-    values_df = pd.merge(val_grp.min(), val_grp.mean(),
-                         left_index=True, right_index=True)
-    values_df.columns = pd.MultiIndex.from_product([('min', 'mean'), df.columns])
+    values_df = reduce(lambda l, r: pd.merge(l, r, left_index=True, right_index=True),
+                       map(partial(agg_op, group=val_grp), agg_mode))
+    if multi_agg:
+        if df.columns.nlevels == 1:
+            ncols = pd.MultiIndex.from_product([agg_mode, df.columns])
+        else:
+            ncols = pd.MultiIndex.from_tuples([(a, *c) for a in agg_mode for c in df.columns])
+        values_df.columns = ncols
     
     res = values_df.groupby(level=['group_id']) \
                    .cummin()
