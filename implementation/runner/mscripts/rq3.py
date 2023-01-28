@@ -95,7 +95,6 @@ def plotBox(df, show=True):
     output_file = 'rs_carla_box.pdf'
     t0 = time.time()
 
-    shining_green = '#00FF00'  ##  For displaying mean
     sns.set()
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 24))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
