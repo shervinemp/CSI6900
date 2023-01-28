@@ -99,9 +99,9 @@ def plotBox(df, show=True):
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 24))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         sns.boxplot(data=df, x='method', y=col, showmeans=True, ax=ax)
-        plt.ylabel(label)
-        plt.legend([], [], frameon=False)
-        plt.xticks(rotation=90)
+        ax.set_ylabel(label)
+        ax.legend([], [], frameon=False)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
     fig.tight_layout()
     plt.savefig(output_file, bbox_inches='tight')
     t1 = time.time()
