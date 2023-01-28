@@ -11,6 +11,14 @@ def static_vars(**kwargs):
         return func
     return decorate
 
+def unstack_col_level(df, var_name, *, level):
+    df_ = df.T \
+            .unstack(level=level) \
+            .T \
+            .reset_index(level=-1)
+    df_ = df_.rename(columns={df_.columns[0]: var_name})
+    return df_
+
 def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, colors=None, legend_labels=None, bin_range=None, ax=None, return_type='axes'):
     # Set the seaborn style
     sns.set()

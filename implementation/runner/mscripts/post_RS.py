@@ -9,6 +9,7 @@ import seaborn as sns
 from scipy.stats import wilcoxon
 
 from data_utils import CSVData, fit_cols, fit_labels
+from utils import unstack_col_level
 from vargha_delaney import VD_A
 
 # Seed for the pseudorandom number generator
@@ -85,12 +86,7 @@ if __name__ == '__main__':
     df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=n_scene, random_state=SEED)
     
     rs_res = RS(df[fit_cols], n_iter=ITER_COUNT, agg_mode=('min', 'mean'), random_state=random_)
-    rs_res = rs_res.T \
-                   .unstack(level=0) \
-                   .T \
-                   .reset_index(level=2) \
-                   .rename(columns={'level_2': 'agg_mode'}) \
-                   .reset_index()
+    rs_res = unstack_col_level(rs_res, 'agg_mode', level=0).reset_index()
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
