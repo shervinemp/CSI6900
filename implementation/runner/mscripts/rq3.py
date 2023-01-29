@@ -51,7 +51,7 @@ def trainMLP(X, y, *, cv=5, **kwargs):
 
 def trainRF(X, y, *, cv=5, **kwargs):
     kwargs.setdefault('max_depth', 5)
-    model = MLPClassifier(**kwargs)
+    model = RandomForestClassifier(**kwargs)
     return train_model(model, X, y, cv=cv)
 
 def fit_cum_range(X, rang: Union[Sequence[int], int]):
