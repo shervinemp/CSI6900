@@ -50,12 +50,12 @@ if __name__  == '__main__':
     methods = ('dt', 'svm', 'mlp')
     mparams = ({'max_depth': 5},
                {},
-               {'max_iter': 500})
+               {'max_iter': 1000})
 
     if os.path.exists('rq3.txt'):
         os.remove('rq3.txt')
     for method, kwparams in zip(methods, mparams):
         for X_train_, X_test_ in zip(fit_cum_range(X_train, MAX_REPEAT),
                                      fit_cum_range(X_test, MAX_REPEAT)):
-            m, d = train(X_train_, sl_train, method=method)
+            m, d = train(X_train_, sl_train, method=method, **kwparams)
             test(m, d, X_test_, sl_test, output_file='rq3.txt')
