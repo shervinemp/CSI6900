@@ -38,6 +38,7 @@ def test(scores, desc, X, y, output_file='rq3.txt'):
         f.write(f'Test F1: {f1s}\n')
         f.write(f'Test mean F1: {np.mean(f1s)}\n')
         f.write(f'Test best F1: {np.max(f1s)}\n')
+        f.write('\n')
 
 if __name__  == '__main__':
     # Read in a list of experiments from a file specified as the first command line argument
