@@ -44,6 +44,9 @@ def get_fv_files(fv):
     return list(filter(lambda x: (x[-4] != '.' and x[-5] != '.'),
                        glob(f'[[]{", ".join(map(str, fv_))}[]]*')))
 
+def sample_index(df, count, random_state=None):
+    return df.loc[df.index.unique().to_series().sample(count, random_state=random_state)]
+
 class CSVData:
     def __init__(self, filepath):
         self._df = pd.read_csv(filepath, index_col=0)
@@ -57,7 +60,7 @@ class CSVData:
         return self.get()
     
     def get(self, count: int = None, min_rep: int = None,
-            max_rep: int = None, random_state=None) -> pd.DataFrame:
+            max_rep: int = None, split: float = None, random_state=None) -> pd.DataFrame:
         df = self._df
         if min_rep:
             df = df.groupby(level=in_cols) \
@@ -66,8 +69,14 @@ class CSVData:
             df = df.groupby(level=in_cols) \
                    .sample(max_rep, random_state=random_state)
         if count:
-            df = df.loc[df.index.unique().to_series().sample(count, random_state=random_state)]
-        return df.copy()
+            df = sample_index(df, count, random_state=random_state)
+        
+        r = df.copy()
+        if split:
+            r = ( (train:=sample_index(df, int(count * split), random_state=random_state)),
+                  df.drop(train.index.to_list()) )
+        
+        return r
     
     @cached_property
     def indices(self, to_list=False) -> list:

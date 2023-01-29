@@ -64,16 +64,28 @@ def fit_range(X, rang: Union[Sequence[int], int]):
                         get_fit_cols(X)))
     return X.drop(dcols, axis=1)
 
-def trainModels(X, y, class_labels=None, *, cv=5, **kwargs):
-    if class_labels is None:
-        class_labels = y
+def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
     models = []
     for X_ in fit_cum_range(X, MAX_REPEAT):
-        X_b, y_b = balance_data(X_, y, class_labels)
-        scores, desc = trainDecisionTree(X_b, y_b, cv=cv, **kwargs)
+        scores, desc = train(X_, y, class_labels, cv=cv, **kwargs)
         f1s = scores["test_f1"]
         models.append(scores['estimator'][np.argmax(f1s)])
     return models
+
+def train(X, y, class_labels=None, method='dt', cv=5, **kwargs):
+    if class_labels is None:
+        class_labels = y
+    X_b, y_b = balance_data(X, y, class_labels)
+    if method == 'dt':
+        scores, desc = trainDecisionTree(X_b, y_b, cv=cv, **kwargs)
+    elif method == 'svm':
+        scores, desc = trainSVM(X_b, y_b, cv=cv, **kwargs)
+    elif method == 'mlp':
+        scores, desc = trainMLP(X_b, y_b, cv=cv, **kwargs)
+    else:
+        raise ValueError(f"Method \"{method}\" not supported.")
+    
+    return scores, desc
 
 def plotRS(df, show=True):
     output_file = 'rs_carla_iters.pdf'
@@ -160,12 +172,8 @@ def balance_data(X, y, class_labels=None, smote_instance=SMOTE(random_state=rand
     df_resampled, _ = smote_instance.fit_resample(df, class_labels)
     return df_resampled[X_cols], df_resampled[y_cols]
 
-if __name__  == '__main__':
-    ##  Training models...
-    # Read in a list of experiments from a file specified as the first command line argument
-    data = CSVData(sys.argv[1])
-    df_ = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED)
-    df_ = df_[fit_cols]
+def prep_data(df):
+    df_ = df[fit_cols]
     
     max_delta = df_.max() - df_.min()
     delta = df_.groupby(level=in_cols) \
@@ -185,10 +193,17 @@ if __name__  == '__main__':
     X = df_fit.reset_index()
     one_hot = pd.get_dummies(X[enum_cols])
     X = X.drop(columns=enum_cols).join(one_hot)
-
     y = df_
 
-    models = trainModels(X, slabels)
+    return X, y, slabels, hlabels
+
+if __name__  == '__main__':
+    # Read in a list of experiments from a file specified as the first command line argument
+    data = CSVData(sys.argv[1])
+    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED)
+    X, y, slabels, hlabels = prep_data(df)
+
+    models = train_models(X, slabels)
 
     search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT, randomize=False, random_state=SEED),
                                 sf[1] )
