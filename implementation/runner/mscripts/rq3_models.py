@@ -48,8 +48,9 @@ if __name__  == '__main__':
     X_train, y_train, sl_train, hl_train = prep_data(df_train)
     X_test, y_test, sl_test, hl_test = prep_data(df_test)
 
-    methods = ('dt', 'svm', 'mlp')
+    methods = ('dt', 'rf', 'svm', 'mlp')
     mparams = ({'max_depth': 5},
+               {'max_depth': 5},
                {},
                {'max_iter': 1000})
 

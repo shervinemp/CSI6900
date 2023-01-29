@@ -14,6 +14,7 @@ from sklearn.model_selection import StratifiedKFold, cross_validate
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 from data_utils import CSVData, enum_cols, fit_cols, fit_labels, in_cols
 from post_RS import RS
@@ -45,6 +46,11 @@ def trainSVM(X, y, *, cv=5, **kwargs):
 def trainMLP(X, y, *, cv=5, **kwargs):
     kwargs.setdefault('hidden_layer_sizes', (50, 100))
     kwargs.setdefault('learning_rate', 'adaptive')
+    model = MLPClassifier(**kwargs)
+    return train_model(model, X, y, cv=cv)
+
+def trainRF(X, y, *, cv=5, **kwargs):
+    kwargs.setdefault('max_depth', 5)
     model = MLPClassifier(**kwargs)
     return train_model(model, X, y, cv=cv)
 
@@ -83,6 +89,8 @@ def train(X, y, class_labels=None, method='dt', cv=5, **kwargs):
         scores, desc = trainSVM(X_b, y_b, cv=cv, **kwargs)
     elif method == 'mlp':
         scores, desc = trainMLP(X_b, y_b, cv=cv, **kwargs)
+    elif method == 'rf':
+        scores, desc = trainRF(X_b, y_b, cv=cv, **kwargs)
     else:
         raise ValueError(f"Method \"{method}\" not supported.")
     
