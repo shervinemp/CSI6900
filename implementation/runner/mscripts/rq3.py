@@ -76,6 +76,7 @@ def train(X, y, class_labels=None, method='dt', cv=5, **kwargs):
     if class_labels is None:
         class_labels = y
     X_b, y_b = balance_data(X, y, class_labels)
+    y_b = y_b[y_b.columns[0]]
     if method == 'dt':
         scores, desc = trainDecisionTree(X_b, y_b, cv=cv, **kwargs)
     elif method == 'svm':

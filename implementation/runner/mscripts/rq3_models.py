@@ -19,7 +19,7 @@ def test(scores, desc, X, y, output_file='rq3.txt'):
     precisions = [precision_score(y, pred) for pred in preds]
     recalls = [recall_score(y, pred) for pred in preds]
     f1s = [f1_score(y, pred) for pred in preds]
-    with open(output_file, 'a') as f:
+    with open(output_file, 'at') as f:
         f.write(f'Approach: {desc}\n')
         f.write(f'Inputs: {list(X.columns)}\n')
         f.write(f'Output: {list(y.columns)}\n')
@@ -47,9 +47,15 @@ if __name__  == '__main__':
     X_train, y_train, sl_train, hl_train = prep_data(df_train)
     X_test, y_test, sl_test, hl_test = prep_data(df_test)
 
-    os.remove('rq3.txt') if os.path.exists('rq3.txt') else None
-    for method in ('dt', 'svm', 'mlp'):
+    methods = ('dt', 'svm', 'mlp')
+    mparams = ({'max_depth': 5},
+               {},
+               {'max_iter': 500})
+
+    if os.path.exists('rq3.txt'):
+        os.remove('rq3.txt')
+    for method, kwparams in zip(methods, mparams):
         for X_train_, X_test_ in zip(fit_cum_range(X_train, MAX_REPEAT),
                                      fit_cum_range(X_test, MAX_REPEAT)):
-            m, d = train(X_train_, sl_train, method=method, max_depth=5)
+            m, d = train(X_train_, sl_train, method=method)
             test(m, d, X_test_, sl_test, output_file='rq3.txt')
