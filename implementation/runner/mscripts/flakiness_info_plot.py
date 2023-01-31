@@ -29,8 +29,8 @@ if __name__ == '__main__':
     # Read in a list of experiments from a file specified as the first command line argument
     data = CSVData(sys.argv[1])
     print(f"#Entries: {len(data)}")
-    
-    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED)
+
+    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED)[fit_cols]
 
     scenarios = df.groupby(level=in_cols)
     mi = scenarios.min()
