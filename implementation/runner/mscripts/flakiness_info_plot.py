@@ -7,7 +7,8 @@ import pandas as pd
 import seaborn as sns
 from scipy.stats import wilcoxon
 
-from utils import CSVData, fit_cols, fit_labels, in_cols, neg_histplot
+from data_utils import CSVData, fit_cols, fit_labels, in_cols
+from utils import neg_histplot
 
 # Seed for the pseudorandom number generator
 SEED = 0
@@ -18,10 +19,6 @@ COUNT = 1000
 # Maximum number of experiment repeats
 EXP_REPEAT = 10
 
-# Read in a list of experiments from a file specified as the first command line argument
-data = CSVData(sys.argv[1], min_run=EXP_REPEAT)
-print(f"#Entries: {len(data)}")
-
 # TODO: sampling with replacement for different groups?
 
 # Create a pseudorandom number generator with the specified seed
@@ -29,10 +26,11 @@ random_ = np.random.RandomState(seed=SEED)
 
 # If this script is being run as the main script
 if __name__ == '__main__':
+    # Read in a list of experiments from a file specified as the first command line argument
+    data = CSVData(sys.argv[1])
+    print(f"#Entries: {len(data)}")
     
-    df = data._df[fit_cols].groupby(level=in_cols) \
-                           .sample(EXP_REPEAT, random_state=SEED) \
-                           .loc[random_.choice(data.indices, COUNT, replace=False)]
+    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED)
 
     scenarios = df.groupby(level=in_cols)
     mi = scenarios.min()
@@ -61,6 +59,9 @@ if __name__ == '__main__':
     mi_thresh = {x: pd.concat([(d:=(mi <= x * df_range_delta).sum()),
                                d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                  for x in t2}
+    mm_thresh = {x: pd.concat([(d:=((mi <= x * df_range_delta) & (ma >= x * df_range_delta)).sum()),
+                               d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
+                 for x in t2}
 
     print("Hard flaky:")
     pprint(hard_flaky)
@@ -73,6 +74,9 @@ if __name__ == '__main__':
 
     print("Min thresh:")
     pprint(mi_thresh)
+
+    print("Above-Below thresh:")
+    pprint(mm_thresh)
 
     # Set the font scale for seaborn plots
     sns.set(font_scale=1.0)
