@@ -153,6 +153,7 @@ def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
     w = w.sort_index(axis=1) \
          .diff(periods=-1, axis=1) \
          .drop(columns=[max_rep])
+    
     t = []
     for i in range(max_rep):
         value_vars = [f"{f}_{i}" for f in fit_cols]
@@ -161,6 +162,7 @@ def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
                         value_name=i, ignore_index=False)
         t.append(X_melt)
     df = pd.concat(t, axis=1)
+    
     w_df = pd.concat([w / w.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0)
     df_vals = df[range(max_rep)]
     df['min'] = (df_vals.cummin(axis=1) * w_df).mean(axis=1)
