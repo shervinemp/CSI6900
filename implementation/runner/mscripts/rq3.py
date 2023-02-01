@@ -1,9 +1,8 @@
-import logging as log
 import re
 import sys
 from itertools import product
 import time
-from typing import Iterable, Sequence, Union
+from typing import Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -109,11 +108,11 @@ def plotRS(df, show=True):
     fig.tight_layout()
     plt.savefig(output_file, bbox_inches='tight')
     t1 = time.time()
-    log.info(f'Plotting random search fitnesses took {t1-t0} seconds. Output file: {output_file}')
+    print(f'Plotting random search fitnesses took {t1-t0} seconds. Output file: {output_file}')
     plt.show() if show else None
 
-def plotBox(df, show=True):
-    output_file = 'rs_carla_box.pdf'
+def plotBox(df, output_file='rs_box.pdf', *, show=True):
+    
     t0 = time.time()
 
     sns.set()
@@ -126,7 +125,7 @@ def plotBox(df, show=True):
     fig.tight_layout()
     plt.savefig(output_file, bbox_inches='tight')
     t1 = time.time()
-    log.info(f'Plotting boxplots took {t1-t0} seconds. Output file: {output_file}')
+    print(f'Plotting boxplots took {t1-t0} seconds. Output file: {output_file}')
     plt.show() if show else None
 
 def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
@@ -162,7 +161,7 @@ def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
                         value_name=i, ignore_index=False)
         t.append(X_melt)
     df = pd.concat(t, axis=1)
-    
+
     w_df = pd.concat([w / w.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0)
     df_vals = df[range(max_rep)]
     df['min'] = (df_vals.cummin(axis=1) * w_df).mean(axis=1)
@@ -190,11 +189,15 @@ def prep_data(df):
     delta = df_.groupby(level=in_cols) \
                .agg(lambda f: f.max() - f.min())
     slabels = (delta / max_delta >= 0.01).any(axis=1) \
-                                        .to_frame('label') \
-                                        .astype(int) \
-                                        .reset_index(drop=True)
+                                         .to_frame('label') \
+                                         .astype(int) \
+                                         .reset_index(drop=True)
     hlabels = df_.groupby(level=in_cols)  \
-                 .agg(lambda f: (f > 0).any() & (f <= 0).any())
+                 .agg(lambda f: (f > 0).any() & (f <= 0).any())\
+                 .any(axis=1) \
+                 .to_frame('label') \
+                 .astype(int) \
+                 .reset_index(drop=True)
     
     df_fit = df_.copy()
     df_fit['i'] = df_fit.groupby(level=in_cols).cumcount()
@@ -208,15 +211,8 @@ def prep_data(df):
 
     return X, y, slabels, hlabels
 
-if __name__  == '__main__':
-    # Read in a list of experiments from a file specified as the first command line argument
-    data = CSVData(sys.argv[1])
-    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED)
-    X, y, slabels, hlabels = prep_data(df)
-
-    models = train_models(X, slabels)
-
-    search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT, randomize=False, random_state=SEED),
+def evaluate(X, y, models, *, suffix=None, random_state=SEED):
+    search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT, randomize=False, random_state=random_state),
                                 sf[1] )
     
     ##  Smart random search random mode with or ...
@@ -232,15 +228,15 @@ if __name__  == '__main__':
     df_smart_and, cnt_and = search_split(smartFitness(X, models=models, method='and'))
 
     ##  Random search for 10 repetitions...
-    f10 = RS(y, n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=SEED)
+    f10 = RS(y, n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
     mi = y.min()
     ma = y.max()
     f_min10 = (f10['min'] - mi) / (ma - mi)
     f_mean10 = (f10['mean'] - mi) / (ma - mi)
 
     ##  Random search for 4 repetitions...
-    f4 = RS(y.groupby(level=y.index.names).sample(4, random_state=random_),
-            n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=SEED)
+    f4 = RS(y.groupby(level=y.index.names).sample(4, random_state=random_state),
+            n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
     f_min4 = (f4['min'] - mi) / (ma - mi)
 
     ##  Normalizing fitnesses for smart random search...
@@ -256,9 +252,23 @@ if __name__  == '__main__':
     df_min_box.columns = pd.MultiIndex.from_product([labels, fit_cols])
     df_min_box = unstack_col_level(df_min_box, 'method', level=0).reset_index()
     
-    plotBox(df_min_box, show=False)
+    plotBox(df_min_box, output_file='rs_box' + f'_{suffix}' if suffix else '' + '.pdf', show=False)
 
-    log.info(f'Number of iterations for smart RS in random mode OR: {cnt_random_or}')
-    log.info(f'Number of iterations for smart RS with models OR: {cnt_or}')
-    log.info(f'Number of iterations for smart RS in random mode AND: {cnt_random_and}')
-    log.info(f'Number of iterations for smart RS with models AND: {cnt_and}')
+    print(f'Number of iterations for smart RS in random mode OR: {cnt_random_or}')
+    print(f'Number of iterations for smart RS with models OR: {cnt_or}')
+    print(f'Number of iterations for smart RS in random mode AND: {cnt_random_and}')
+    print(f'Number of iterations for smart RS with models AND: {cnt_and}')
+
+if __name__  == '__main__':
+    # Read in a list of experiments from a file specified as the first command line argument
+    data = CSVData(sys.argv[1])
+    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED)
+    X, y, slabels, hlabels = prep_data(df)
+
+    smodels = train_models(X, slabels)
+
+    evaluate(X, y, smodels, suffix='s', random_state=SEED)
+
+    hmodels = train_models(X, hlabels)
+
+    evaluate(X, y, hmodels, suffix='h', random_state=SEED)
