@@ -266,9 +266,7 @@ if __name__  == '__main__':
     X, y, slabels, hlabels = prep_data(df)
 
     smodels = train_models(X, slabels)
-
     evaluate(X, y, smodels, suffix='s', random_state=SEED)
 
     hmodels = train_models(X, hlabels)
-
     evaluate(X, y, hmodels, suffix='h', random_state=SEED)

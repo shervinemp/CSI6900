@@ -59,7 +59,7 @@ if __name__ == '__main__':
     mi_thresh = {x: pd.concat([(d:=(mi <= x * df_range_delta).sum()),
                                d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                  for x in t2}
-    mm_thresh = {x: pd.concat([(d:=((mi <= x * df_range_delta) & (ma >= x * df_range_delta)).sum()),
+    mm_thresh = {x: pd.concat([(d:=((mi <= x * df_range_delta) & (ma > x * df_range_delta)).sum()),
                                d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                  for x in t2}
 
