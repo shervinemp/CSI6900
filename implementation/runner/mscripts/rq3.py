@@ -1,7 +1,7 @@
 import re
 import sys
-from itertools import product
 import time
+from itertools import product
 from typing import Sequence, Union
 
 import numpy as np
@@ -9,15 +9,17 @@ import pandas as pd
 import seaborn as sns
 from imblearn.over_sampling import SMOTE
 from matplotlib import pyplot as plt
+from scipy.stats import wilcoxon
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_validate
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
 
 from data_utils import CSVData, enum_cols, fit_cols, fit_labels, in_cols
 from post_RS import RS
 from utils import static_vars, unstack_col_level
+from vargha_delaney import VD_A
 
 SEED = 0
 EXP_REPEAT = 10
@@ -25,6 +27,7 @@ COUNT = 1000
 ITER_COUNT = 50
 MAX_REPEAT = 4
 
+# Create a pseudorandom number generator with the specified seed
 random_ = np.random.RandomState(seed=SEED)
 
 def train_model(model, X, y, *, cv=5):
@@ -220,10 +223,10 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     df_random_and, cnt_random_and = search_split(smartFitness(X, models=None, method='and'))
     df_smart_and, cnt_smart_and = search_split(smartFitness(X, models=models, method='and'))
 
-    ##  Random search for 10 repetitions...
+    # Random search for 10 repetitions...
     f10 = RS(y, n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
 
-    ##  Random search for 4 repetitions...
+    # Random search for 4 repetitions...
     f4 = RS(y.groupby(level=y.index.names).sample(4, random_state=random_state),
             n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
 
@@ -253,7 +256,7 @@ if __name__  == '__main__':
     X, y, slabels, hlabels = prep_data(df)
 
     smodels = train_models(X, slabels)
-    evaluate(X, y, smodels, suffix='s', random_state=SEED)
+    evaluate(X, y, smodels, suffix='soft', random_state=SEED)
 
     hmodels = train_models(X, hlabels)
-    evaluate(X, y, hmodels, suffix='h', random_state=SEED)
+    evaluate(X, y, hmodels, suffix='hard', random_state=SEED)
