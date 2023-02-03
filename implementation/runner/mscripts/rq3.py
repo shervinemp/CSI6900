@@ -116,7 +116,7 @@ def plotBox(df, output_file='rs_box.pdf', *, show=True):
     t0 = time.time()
 
     sns.set()
-    fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 24))
+    fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         sns.boxplot(data=df, x='method', y=col, showmeans=True, ax=ax)
         ax.set_ylabel(label)

@@ -13,7 +13,7 @@ from utils import unstack_col_level
 from vargha_delaney import VD_A
 
 # Seed for the pseudorandom number generator
-SEED = 0
+SEED = 5
 
 # Number of experiments in each group
 ITER_COUNT = 50
@@ -97,8 +97,8 @@ if __name__ == '__main__':
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a line plot of the data for the fitness value
-        g = sns.lineplot(x='x', y=col, hue='agg_mode', legend=False,
-                         data=rs_res, ax=ax)
+        sns.lineplot(x='x', y=col, hue='agg_mode', legend=False,
+                     data=rs_res, ax=ax)
         
         ax.set_xlim((0, 50))
         ax.set_ylim(*ylim_dict[col])
@@ -125,9 +125,11 @@ if __name__ == '__main__':
     hist_bins = np.linspace(0, ITER_COUNT, HIST_SIZE + 1)
     
     # Calculate the difference between non-minimum and minimum fitness values
-    diff = rs_res[rs_res.agg_mode == 'mean'].set_index(['group_id', 'x'])[fit_cols] \
-           .subtract(rs_res[rs_res.agg_mode == 'min'].set_index(['group_id', 'x'])[fit_cols]) \
-           .reset_index()
+    diff = rs_res[rs_res.agg_mode == 'mean'] \
+            .set_index(['group_id', 'x'])[fit_cols] \
+            .subtract(rs_res[rs_res.agg_mode == 'min'] \
+            .set_index(['group_id', 'x'])[fit_cols]) \
+            .reset_index()
     
     # Add a box column to the data based on the index of the data point
     diff['box'] = diff['x'].apply(
@@ -180,6 +182,7 @@ if __name__ == '__main__':
         
         # Set the x and y labels for the plot
         ax.set(xlabel="aggregation", ylabel=label)
+        ax.set_ylim(*ylim_dict[col])
 
         ax.set_xticklabels(['RSwRep', 'RS'])
     # Tightly adjust the layout of the plots
