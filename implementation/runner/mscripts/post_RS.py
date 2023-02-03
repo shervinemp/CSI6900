@@ -13,7 +13,7 @@ from utils import unstack_col_level
 from vargha_delaney import VD_A
 
 # Seed for the pseudorandom number generator
-SEED = 5
+SEED = 0
 
 # Number of experiments in each group
 ITER_COUNT = 50
@@ -27,52 +27,13 @@ EXP_REPEAT = 10
 HIST_SIZE = 25
 
 # If this script is being run as the main script
-def RS(df, n_iter, agg_mode='mean', randomize=True, random_state=None):
-    def agg_op(agg_mode, *, group):
-        if agg_mode == 'first':
-            return group.first()
-        elif agg_mode == 'min':
-            return group.min()
-        elif agg_mode == 'mean':
-            return group.mean()
-        else:
-            raise ValueError(f"agg_mode \"{agg_mode}\" not supported.")
-
-    if type(agg_mode) in (list, tuple):
-        multi_agg = True
-    else:
-        multi_agg = False
-        agg_mode = (agg_mode,)
-
-    if random_state is None or type(random_state) is int:
-        random_state = np.random.RandomState(random_state)
-    
-    df_ = df.copy()
-    indices = df.index.unique()
-    
-    if randomize is True:
-        df_ = df_.loc[indices.to_series().sample(frac=1, random_state=random_state)]
-
-    repeats = df_.groupby(level=list(range(df_.index.nlevels))).size()
-    index_group = np.array([x for x, r in zip(random_state.permutation(len(indices)), repeats) \
-                              for _ in range(r)])
-    df_['group_id'], df_['x'] = divmod(index_group, n_iter)
-    df_.set_index(['group_id', 'x'], append=True, inplace=True)
-    
-    val_grp = df_.groupby(level=['group_id', 'x'])
-    values_df = reduce(lambda l, r: pd.merge(l, r, left_index=True, right_index=True),
-                       map(partial(agg_op, group=val_grp), agg_mode))
-    if multi_agg:
-        if df.columns.nlevels == 1:
-            ncols = pd.MultiIndex.from_product([agg_mode, df.columns])
-        else:
-            ncols = pd.MultiIndex.from_tuples([(a, *c) for a in agg_mode for c in df.columns])
-        values_df.columns = ncols
-    
-    res = values_df.groupby(level=['group_id']) \
-                   .cummin()
-    
-    return res
+def RS(df: pd.DataFrame, n_iter: int) -> pd.DataFrame:
+    g_index = pd.RangeIndex(len(df)) // n_iter
+    df_ = df.groupby(g_index, as_index=False).cummin()
+    df_['rs_iter'] = df.groupby(g_index).cumcount()
+    df_['rs_group'] = g_index
+    df_.set_index(['rs_group', 'rs_iter'], append=True, inplace=True)
+    return df_
 
 if __name__ == '__main__':
     # Create a pseudorandom number generator with the specified seed
@@ -83,9 +44,10 @@ if __name__ == '__main__':
     print(f"#Entries: {len(data)}")
 
     n_scene = ITER_COUNT * RS_REPEAT
-    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=n_scene, random_state=SEED)
+    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=n_scene,
+                  agg_mode=('min', 'mean'), random_state=SEED)
     
-    rs_res = RS(df[fit_cols], n_iter=ITER_COUNT, agg_mode=('min', 'mean'), random_state=random_)
+    rs_res = RS(df, n_iter=ITER_COUNT)
     rs_res = unstack_col_level(rs_res, 'agg_mode', level=0).reset_index()
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
@@ -97,7 +59,7 @@ if __name__ == '__main__':
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a line plot of the data for the fitness value
-        sns.lineplot(x='x', y=col, hue='agg_mode', legend=False,
+        sns.lineplot(x='rs_iter', y=col, hue='agg_mode', legend=False,
                      data=rs_res, ax=ax)
         
         ax.set_xlim((0, 50))
@@ -126,13 +88,13 @@ if __name__ == '__main__':
     
     # Calculate the difference between non-minimum and minimum fitness values
     diff = rs_res[rs_res.agg_mode == 'mean'] \
-            .set_index(['group_id', 'x'])[fit_cols] \
+            .set_index(['rs_group', 'rs_iter'])[fit_cols] \
             .subtract(rs_res[rs_res.agg_mode == 'min'] \
-            .set_index(['group_id', 'x'])[fit_cols]) \
+            .set_index(['rs_group', 'rs_iter'])[fit_cols]) \
             .reset_index()
     
     # Add a box column to the data based on the index of the data point
-    diff['box'] = diff['x'].apply(
+    diff['box'] = diff['rs_iter'].apply(
         lambda x: next(i for i, b in enumerate(hist_bins) if x < b) - 1
     )
 
@@ -153,7 +115,7 @@ if __name__ == '__main__':
     # Close the plot
     plt.close()
 
-    last_iter = rs_res.groupby(['group_id', 'agg_mode', 'x']).last().reset_index()
+    last_iter = rs_res.groupby(['rs_group', 'agg_mode', 'rs_iter']).last().reset_index()
     b_ = last_iter[last_iter.agg_mode == 'min']
     c_ = last_iter[last_iter.agg_mode == 'mean']
     

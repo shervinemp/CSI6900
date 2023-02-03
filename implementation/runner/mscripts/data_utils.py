@@ -1,15 +1,9 @@
-import itertools as it
-from bisect import bisect_left
-from functools import cached_property
+from functools import cached_property, reduce
 from glob import glob
-from typing import List
+from typing import Iterable, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.stats as ss
-import seaborn as sns
-from pandas.core.groupby.generic import DataFrameGroupBy
 
 in_cols = [
         "Road type",
@@ -44,23 +38,24 @@ def get_fv_files(fv):
     return list(filter(lambda x: (x[-4] != '.' and x[-5] != '.'),
                        glob(f'[[]{", ".join(map(str, fv_))}[]]*')))
 
-def sample_index(df, count, random_state=None):
-    return df.loc[df.index.unique().to_series().sample(count, random_state=random_state)]
-
 class CSVData:
     def __init__(self, filepath):
         self._df = pd.read_csv(filepath, index_col=0)
-        # Set the "Road type" to "task" columns as the index of the DataFrame
+        # Set the index of the DataFrame
         self._df.set_index(in_cols, inplace=True)
         # Sort the index
         self._df.sort_index(inplace=True)
     
     @property
     def df(self) -> pd.DataFrame:
-        return self.get()
+        return self._df.copy()
     
-    def get(self, count: int = None, min_rep: int = None,
-            max_rep: int = None, split: float = None, random_state=None) -> pd.DataFrame:
+    def get(self, count: Union[int, None] = None,
+            min_rep: Union[int, None] = None, max_rep: Union[int, None] = None,
+            randomize: bool = True, random_state: Union[int, np.random.RandomState, None] = None,
+            agg_mode: Union[str, Iterable[str], None] = None,
+            split: Union[float, None] = None, agg_test_split: bool = False) -> pd.DataFrame:
+        
         df = self._df
         if min_rep:
             df = df.groupby(level=in_cols) \
@@ -68,21 +63,62 @@ class CSVData:
         if max_rep:
             df = df.groupby(level=in_cols) \
                    .sample(max_rep, random_state=random_state)
-        if count:
-            df = sample_index(df, count, random_state=random_state)
+        if count or randomize:
+            if count is None:
+                count = self.__len__()
+            df = self._sample_index(df, count, return_sorted=(randomize is False), random_state=random_state)
         
-        r = df.copy()
         if split:
-            r = ( (train:=sample_index(df, int(count * split), random_state=random_state)),
-                  df.drop(train.index.to_list()) )
+            df = ( (train:=self._sample_index(df, int(count * split), random_state=random_state)),
+                   df.drop(train.index.to_list()) )
+        if agg_mode:
+            agg_func = lambda x: self._aggregate(df=x, agg_mode=agg_mode, randomize=randomize, random_state=random_state)
+            if split:
+                if agg_test_split:
+                    df = (agg_func(df[0]), agg_func(df[1]))
+                else:
+                    df = (agg_func(df[0]), df[1])
+            else:
+                df = agg_func(df)
         
-        return r
+        return df
     
     @cached_property
-    def indices(self, to_list=False) -> list:
-        # Convert the index to a list of tuples
-        return self.df.index.unique().to_flat_index()
+    def indices(self) -> list:
+        return self.df.index.unique()
     
     def __len__(self) -> int:
         # Return the number of indices of the DataFrame
         return len(self.indices)
+    
+    def _sample_index(self, df: pd.DataFrame, count: int, return_sorted: bool = False,
+                     random_state: Union[int, np.random.RandomState, None] = None):
+        sample =  df.loc[df.index.unique().to_series().sample(count, random_state=random_state)]
+        if return_sorted:
+            sample = sample.sort_index()
+        return sample
+    
+    def _aggregate(self, df: pd.DataFrame, agg_mode: Union[str, Iterable[str]],
+                   randomize: bool = True, random_state: Union[int, np.random.RandomState, None] = None):
+        
+        if isinstance(agg_mode, str):
+            multi_agg = False
+            agg_mode = (agg_mode,)
+        else:
+            multi_agg = True
+        
+        repeats = df.groupby(level=list(range(df.index.nlevels)))
+        if randomize:
+            repeats = repeats.sample(frac=1, random_state=random_state) \
+                             .groupby(level=list(range(df.index.nlevels)))
+        
+        df_ = reduce(lambda l, r: pd.merge(l, r, left_index=True, right_index=True),
+                     map(lambda func: repeats.agg(func), agg_mode))
+        if multi_agg:
+            if df.columns.nlevels == 1:
+                ncols = pd.MultiIndex.from_product([agg_mode, df.columns])
+            else:
+                ncols = pd.MultiIndex.from_tuples([(a, *c) for a in agg_mode for c in df.columns])
+            df_.columns = ncols
+        
+        return df_
