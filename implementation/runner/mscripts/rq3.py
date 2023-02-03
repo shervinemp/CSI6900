@@ -215,17 +215,10 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT, randomize=False, random_state=random_state),
                                 sf[1] )
     
-    ##  Smart random search random mode with or ...
     df_random_or, cnt_random_or = search_split(smartFitness(X, models=None, method='or'))
-
-    ##  Smart random search with models with or...
-    df_smart_or, cnt_or = search_split(smartFitness(X, models=models, method='or'))
-
-    ##  Smart random search random mode with and ...
+    df_smart_or, cnt_smart_or = search_split(smartFitness(X, models=models, method='or'))
     df_random_and, cnt_random_and = search_split(smartFitness(X, models=None, method='and'))
-
-    ##  Smart random search with models with and...
-    df_smart_and, cnt_and = search_split(smartFitness(X, models=models, method='and'))
+    df_smart_and, cnt_smart_and = search_split(smartFitness(X, models=models, method='and'))
 
     ##  Random search for 10 repetitions...
     f10 = RS(y, n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
@@ -248,10 +241,10 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     if suffix:
         print(f"{suffix}:")
 
-    print(f'Number of iterations for smart RS in random mode OR: {cnt_random_or}')
-    print(f'Number of iterations for smart RS with models OR: {cnt_or}')
-    print(f'Number of iterations for smart RS in random mode AND: {cnt_random_and}')
-    print(f'Number of iterations for smart RS with models AND: {cnt_and}')
+    print(f'Number of iterations for RS in random mode OR: {cnt_random_or}')
+    print(f'Number of iterations for smart RS with models OR: {cnt_smart_or}')
+    print(f'Number of iterations for RS in random mode AND: {cnt_random_and}')
+    print(f'Number of iterations for smart RS with models AND: {cnt_smart_and}')
 
 if __name__  == '__main__':
     # Read in a list of experiments from a file specified as the first command line argument
