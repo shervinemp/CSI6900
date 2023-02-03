@@ -32,7 +32,6 @@ def RS(df: pd.DataFrame, n_iter: int) -> pd.DataFrame:
     df_ = df.groupby(g_index, as_index=False).cummin()
     df_['rs_iter'] = df.groupby(g_index).cumcount()
     df_['rs_group'] = g_index
-    df_.set_index(['rs_group', 'rs_iter'], append=True, inplace=True)
     return df_
 
 if __name__ == '__main__':
@@ -47,7 +46,7 @@ if __name__ == '__main__':
     df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=n_scene,
                   agg_mode=('min', 'mean'), random_state=SEED)
     
-    rs_res = RS(df, n_iter=ITER_COUNT)
+    rs_res = RS(df, n_iter=ITER_COUNT).set_index(['rs_group', 'rs_iter'], append=True)
     rs_res = unstack_col_level(rs_res, 'agg_mode', level=0).reset_index()
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
