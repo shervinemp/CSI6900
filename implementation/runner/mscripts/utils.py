@@ -1,7 +1,12 @@
+from pprint import pprint
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.stats import wilcoxon
+
+from vargha_delaney import VD_A
 
 
 def static_vars(**kwargs):
@@ -18,6 +23,15 @@ def unstack_col_level(df, var_name, *, level):
             .reset_index(level=-1)
     df_ = df_.rename(columns={df_.columns[0]: var_name})
     return df_
+
+def stat_test(a: pd.DataFrame, b: pd.DataFrame):
+    print("wilcoxon:")
+    pprint({label: wilcoxon(a[col].to_list(), b[col].to_list()) \
+           for col, label in zip(fit_cols, fit_labels)})
+    
+    print("VD:")
+    pprint({label: VD_A(a[col].to_list(), b[col].to_list()) \
+           for col, label in zip(fit_cols, fit_labels)})
 
 def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, colors=None, legend_labels=None, bin_range=None, ax=None, return_type='axes'):
     # Set the seaborn style

@@ -1,8 +1,6 @@
-from pprint import pprint
 import re
 import sys
 import time
-from itertools import product
 from typing import Sequence, Union
 
 import numpy as np
@@ -10,7 +8,6 @@ import pandas as pd
 import seaborn as sns
 from imblearn.over_sampling import SMOTE
 from matplotlib import pyplot as plt
-from scipy.stats import wilcoxon
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_validate
 from sklearn.neural_network import MLPClassifier
@@ -19,8 +16,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from data_utils import CSVData, enum_cols, fit_cols, fit_labels, in_cols
 from post_RS import RS
-from utils import static_vars, unstack_col_level
-from vargha_delaney import VD_A
+from utils import stat_test, static_vars, unstack_col_level
 
 SEED = 0
 EXP_REPEAT = 10
@@ -265,15 +261,6 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     print(f'Number of iterations for smart RS with models OR: {cnt_smart_or}')
     print(f'Number of iterations for RS in random mode AND: {cnt_random_and}')
     print(f'Number of iterations for smart RS with models AND: {cnt_smart_and}')
-
-def stat_test(a: pd.DataFrame, b: pd.DataFrame):
-    print("wilcoxon:")
-    pprint({label: wilcoxon(a[col].to_list(), b[col].to_list()) \
-           for col, label in zip(fit_cols, fit_labels)})
-    
-    print("VD:")
-    pprint({label: VD_A(a[col].to_list(), b[col].to_list()) \
-           for col, label in zip(fit_cols, fit_labels)})
 
 if __name__  == '__main__':
     # Read in a list of experiments from a file specified as the first command line argument

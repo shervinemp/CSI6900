@@ -5,11 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from scipy.stats import wilcoxon
 
 from data_utils import CSVData, fit_cols, fit_labels
-from utils import unstack_col_level
-from vargha_delaney import VD_A
+from utils import stat_test, unstack_col_level
 
 # Seed for the pseudorandom number generator
 SEED = 0
@@ -116,23 +114,19 @@ if __name__ == '__main__':
     plt.close()
 
     last_iter = rs_res.groupby(['rs_group', 'agg_mode', 'rs_iter']).last().reset_index()
-    b_ = last_iter[last_iter.agg_mode == 'min']
-    c_ = last_iter[last_iter.agg_mode == 'mean']
+    a_ = last_iter[last_iter.agg_mode == 'min']
+    b_ = last_iter[last_iter.agg_mode == 'mean']
     
-    df_end = pd.concat([b_, c_])
+    df_end = pd.concat([a_, b_])
 
     print('avg min:')
-    pprint(b_[fit_cols].mean())
+    pprint(a_[fit_cols].mean())
 
     print('avg mean:')
-    pprint(c_[fit_cols].mean())
+    pprint(b_[fit_cols].mean())
 
     print("min-mean")
-    pprint({label: wilcoxon(c_[col].to_list(), b_[col].to_list()) \
-           for col, label in zip(fit_cols, fit_labels)})
-    
-    pprint({label: VD_A(c_[col].to_list(), b_[col].to_list()) \
-           for col, label in zip(fit_cols, fit_labels)})
+    stat_test(a_, b_)
     
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(4 * len(fit_cols), 4))
