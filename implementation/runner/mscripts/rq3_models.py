@@ -5,9 +5,9 @@ import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 from data_utils import CSVData
-from rq3 import (COUNT, EXP_REPEAT, MAX_REPEAT, SEED, fit_cum_range, prep_data,
-                 train)
+from rq3 import COUNT, EXP_REPEAT, MAX_REPEAT, fit_cum_range, prep_data, train
 
+SEED = 0
 
 def test(scores, desc, X, y, output_file='rq3.txt'):
     models = scores['estimator']
