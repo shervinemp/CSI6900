@@ -1,5 +1,4 @@
 import sys
-from functools import partial, reduce
 from pprint import pprint
 
 import matplotlib.pyplot as plt
