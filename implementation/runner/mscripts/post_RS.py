@@ -25,7 +25,6 @@ EXP_REPEAT = 10
 
 HIST_SIZE = 25
 
-# If this script is being run as the main script
 def RS(df: pd.DataFrame, n_iter: int, append_index: bool = True) -> pd.DataFrame:
     g_index = pd.RangeIndex(len(df)) // n_iter
     df_ = df.groupby(g_index, as_index=False).cummin()
@@ -35,6 +34,7 @@ def RS(df: pd.DataFrame, n_iter: int, append_index: bool = True) -> pd.DataFrame
         df_.set_index(['rs_group', 'rs_iter'], append=True, inplace=True)
     return df_
 
+# If this script is being run as the main script
 if __name__ == '__main__':
     # Create a pseudorandom number generator with the specified seed
     random_ = np.random.RandomState(seed=SEED)
