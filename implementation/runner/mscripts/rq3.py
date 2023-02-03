@@ -1,3 +1,4 @@
+from pprint import pprint
 import re
 import sys
 import time
@@ -214,6 +215,9 @@ def prep_data(df):
 
     return X, y, slabels, hlabels
 
+def get_last_iter(rs_df: pd.DataFrame):
+    return rs_df.groupby(level=['rs_group', 'rs_iter']).last()
+
 def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT), sf[1] )
     
@@ -230,9 +234,18 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     f10 = RS(agg_func(y), n_iter=ITER_COUNT)
 
     # Random search for 4 repetitions...
-    f4 = RS(agg_func(y.groupby(level=y.index.names)\
+    f4 = RS(agg_func(y.groupby(level=y.index.names) \
                       .sample(4, random_state=random_state)),
             n_iter=ITER_COUNT)
+    
+    print('f4 - f10')
+    stat_test(f4['min'], f10['min'])
+    
+    print('f4 - RS-Models-AND')
+    stat_test(f4['min'], df_smart_and['min'])
+    
+    print('f4 - RS-Models-OR')
+    stat_test(f4['min'], df_smart_or['min'])
 
     labels = ['RS-Random-AND', 'RS-Models-AND',
               'RS-Random-OR', 'RS-Models-OR',
@@ -252,6 +265,15 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     print(f'Number of iterations for smart RS with models OR: {cnt_smart_or}')
     print(f'Number of iterations for RS in random mode AND: {cnt_random_and}')
     print(f'Number of iterations for smart RS with models AND: {cnt_smart_and}')
+
+def stat_test(a: pd.DataFrame, b: pd.DataFrame):
+    print("wilcoxon:")
+    pprint({label: wilcoxon(a[col].to_list(), b[col].to_list()) \
+           for col, label in zip(fit_cols, fit_labels)})
+    
+    print("VD:")
+    pprint({label: VD_A(a[col].to_list(), b[col].to_list()) \
+           for col, label in zip(fit_cols, fit_labels)})
 
 if __name__  == '__main__':
     # Read in a list of experiments from a file specified as the first command line argument

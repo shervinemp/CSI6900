@@ -92,7 +92,7 @@ class CSVData:
         return len(self.indices)
     
     @staticmethod
-    def _sample_index(df: pd.DataFrame, count: int, return_sorted: bool = False,
+    def _sample_index(df: pd.DataFrame, count: int, *, return_sorted: bool = False,
                      random_state: Union[int, np.random.RandomState, None] = None):
         sample =  df.loc[df.index.unique().to_series().sample(count, random_state=random_state)]
         if return_sorted:
@@ -100,7 +100,7 @@ class CSVData:
         return sample
     
     @staticmethod
-    def _aggregate(df: pd.DataFrame, agg_mode: Union[str, Iterable[str]],
+    def _aggregate(df: pd.DataFrame, agg_mode: Union[str, Iterable[str]], *,
                    randomize: bool = False, random_state: Union[int, np.random.RandomState, None] = None):
         
         if isinstance(agg_mode, str):
