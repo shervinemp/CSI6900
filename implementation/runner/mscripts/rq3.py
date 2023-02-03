@@ -254,6 +254,9 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     
     plotBox(df_min_box, output_file='rs_box' + f'_{suffix}' if suffix else '' + '.pdf', show=False)
 
+    if suffix:
+        print(f"{suffix}:")
+
     print(f'Number of iterations for smart RS in random mode OR: {cnt_random_or}')
     print(f'Number of iterations for smart RS with models OR: {cnt_or}')
     print(f'Number of iterations for smart RS in random mode AND: {cnt_random_and}')
