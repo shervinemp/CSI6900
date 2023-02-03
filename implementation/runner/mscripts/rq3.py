@@ -229,26 +229,17 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
 
     ##  Random search for 10 repetitions...
     f10 = RS(y, n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
-    mi = y.min()
-    ma = y.max()
-    f_min10 = (f10['min'] - mi) / (ma - mi)
-    f_mean10 = (f10['mean'] - mi) / (ma - mi)
 
     ##  Random search for 4 repetitions...
     f4 = RS(y.groupby(level=y.index.names).sample(4, random_state=random_state),
             n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
-    f_min4 = (f4['min'] - mi) / (ma - mi)
 
-    ##  Normalizing fitnesses for smart random search...
-    f_min_smart_or = (df_smart_or['min'] - mi) / (ma - mi)
-    f_min_smart_random_or = (df_random_or['min'] - mi) / (ma - mi)
-    f_min_smart_and = (df_smart_and['min'] - mi) / (ma - mi)
-    f_min_smart_random_and = (df_random_and['min'] - mi) / (ma - mi)
-
-    df_min_box = pd.concat([f_min_smart_random_and, f_min_smart_and, f_min_smart_random_or,
-                            f_min_smart_or,f_min4, f_min10, f_mean10], axis=1)
-    labels = ['RS-Random-AND', 'RS-Models-AND', 'RS-Random-OR',
-              'RS-Models-OR', 'RSw4REP', 'RSw10REP', 'RS']
+    labels = ['RS-Random-AND', 'RS-Models-AND',
+              'RS-Random-OR', 'RS-Models-OR',
+              'RSw4REP', 'RSw10REP', 'RS']
+    df_min_box = pd.concat([df_random_and['min'], df_smart_and['min'],
+                            df_random_or['min'], df_smart_or['min'],
+                            f4['min'], f10['min'], f10['mean']], axis=1)
     df_min_box.columns = pd.MultiIndex.from_product([labels, fit_cols])
     df_min_box = unstack_col_level(df_min_box, 'method', level=0).reset_index()
     
