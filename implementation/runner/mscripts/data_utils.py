@@ -66,13 +66,13 @@ class CSVData:
         if count or randomize:
             if count is None:
                 count = self.__len__()
-            df = self._sample_index(df, count, return_sorted=(randomize is False), random_state=random_state)
+            df = CSVData._sample_index(df, count, return_sorted=(randomize is False), random_state=random_state)
         
         if split:
-            df = ( (train:=self._sample_index(df, int(count * split), random_state=random_state)),
+            df = ( (train:=CSVData._sample_index(df, int(count * split), random_state=random_state)),
                    df.drop(train.index.to_list()) )
         if agg_mode:
-            agg_func = lambda x: self._aggregate(df=x, agg_mode=agg_mode, randomize=randomize, random_state=random_state)
+            agg_func = lambda x: CSVData._aggregate(df=x, agg_mode=agg_mode, randomize=randomize, random_state=random_state)
             if split:
                 if agg_test_split:
                     df = (agg_func(df[0]), agg_func(df[1]))
@@ -91,15 +91,17 @@ class CSVData:
         # Return the number of indices of the DataFrame
         return len(self.indices)
     
-    def _sample_index(self, df: pd.DataFrame, count: int, return_sorted: bool = False,
+    @staticmethod
+    def _sample_index(df: pd.DataFrame, count: int, return_sorted: bool = False,
                      random_state: Union[int, np.random.RandomState, None] = None):
         sample =  df.loc[df.index.unique().to_series().sample(count, random_state=random_state)]
         if return_sorted:
             sample = sample.sort_index()
         return sample
     
-    def _aggregate(self, df: pd.DataFrame, agg_mode: Union[str, Iterable[str]],
-                   randomize: bool = True, random_state: Union[int, np.random.RandomState, None] = None):
+    @staticmethod
+    def _aggregate(df: pd.DataFrame, agg_mode: Union[str, Iterable[str]],
+                   randomize: bool = False, random_state: Union[int, np.random.RandomState, None] = None):
         
         if isinstance(agg_mode, str):
             multi_agg = False

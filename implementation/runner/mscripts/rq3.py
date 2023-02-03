@@ -215,20 +215,24 @@ def prep_data(df):
     return X, y, slabels, hlabels
 
 def evaluate(X, y, models, *, suffix=None, random_state=SEED):
-    search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT, randomize=False, random_state=random_state),
-                                sf[1] )
+    search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT), sf[1] )
     
     df_random_or, cnt_random_or = search_split(smartFitness(X, models=None, method='or'))
     df_smart_or, cnt_smart_or = search_split(smartFitness(X, models=models, method='or'))
     df_random_and, cnt_random_and = search_split(smartFitness(X, models=None, method='and'))
     df_smart_and, cnt_smart_and = search_split(smartFitness(X, models=models, method='and'))
 
+    agg_func = lambda x: CSVData._aggregate(x, agg_mode=('min', 'mean')) \
+                                .loc[x.index.unique()] \
+                                .reset_index()
+
     # Random search for 10 repetitions...
-    f10 = RS(y, n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
+    f10 = RS(agg_func(y), n_iter=ITER_COUNT)
 
     # Random search for 4 repetitions...
-    f4 = RS(y.groupby(level=y.index.names).sample(4, random_state=random_state),
-            n_iter=ITER_COUNT, agg_mode=('min', 'mean'), randomize=False, random_state=random_state)
+    f4 = RS(agg_func(y.groupby(level=y.index.names)\
+                      .sample(4, random_state=random_state)),
+            n_iter=ITER_COUNT)
 
     labels = ['RS-Random-AND', 'RS-Models-AND',
               'RS-Random-OR', 'RS-Models-OR',
