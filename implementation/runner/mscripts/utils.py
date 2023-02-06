@@ -24,14 +24,16 @@ def unstack_col_level(df, var_name, *, level):
     df_ = df_.rename(columns={df_.columns[0]: var_name})
     return df_
 
-def stat_test(a: pd.DataFrame, b: pd.DataFrame):
+def stat_test(a: pd.DataFrame, b: pd.DataFrame, col_label_dict=None):
+    if col_label_dict is None:
+        col_label_dict = {str(x): str(x) for x in a.columns.intersection(b.columns)}
     print("wilcoxon:")
     pprint({label: wilcoxon(a[col].to_list(), b[col].to_list()) \
-           for col, label in zip(fit_cols, fit_labels)})
+           for col, label in col_label_dict.items()})
     
     print("VD:")
     pprint({label: VD_A(a[col].to_list(), b[col].to_list()) \
-           for col, label in zip(fit_cols, fit_labels)})
+           for col, label in col_label_dict.items()})
 
 def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, colors=None, legend_labels=None, bin_range=None, ax=None, return_type='axes'):
     # Set the seaborn style

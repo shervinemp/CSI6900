@@ -56,7 +56,7 @@ def trainRF(X, y, *, cv=5, **kwargs):
 def fit_cum_range(X, rang: Union[Sequence[int], int]):
     if type(rang) is int:
         rang = range(rang)
-    yield from (fit_range(X, i+1) for i in rang)
+    yield from (fit_range(X, i + 1) for i in rang)
 
 @static_vars(regs=[re.compile(f"^{f}_\d+$") for f in fit_cols])
 def get_fit_cols(X):
@@ -131,25 +131,25 @@ def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
         raise ValueError(f"Method \"{method}\" is not valid.")
     if models is None:
         if method == 'and':
-            visit_proba = np.logspace(1, max_rep, num=max_rep, base=p_thresh)
+            visit_proba = np.logspace(1, max_rep-1, num=max_rep-1, base=p_thresh)
         elif method == 'or':
-            visit_proba = np.logspace(1, max_rep, num=max_rep, base=1-p_thresh)
+            visit_proba = np.logspace(1, max_rep-1, num=max_rep-1, base=1-p_thresh)
         elif method == 'first':
-            visit_proba = np.ones(max_rep) * 0.5
-        visit_proba = pd.DataFrame(visit_proba[np.newaxis, :].repeat(len(X), axis=0),
-                                   columns=range(max_rep))    
+            visit_proba = np.ones(max_rep-1) * 0.5
+        visit_proba = pd.DataFrame(visit_proba[np.newaxis, :].repeat(len(X), axis=0))
     else:
         pred = np.array([m.predict(x) >= p_thresh \
-                         for m, x in zip(models, fit_cum_range(X, max_rep))]).T
-        pred_df = pd.DataFrame(pred, columns=range(max_rep))
+                         for m, x in zip(models, fit_cum_range(X, max_rep-1))]).T
+        pred_df = pd.DataFrame(pred)
         if method == 'and':
             visit_proba = pred_df.cumprod(axis=1)
         elif method == 'or':
             visit_proba = (~pred_df).cumprod(axis=1)
         elif method == 'first':
-            visit_proba = pred_df[[0]].repeat(len(pred_df), axis=1)
+            visit_proba = pd.concat((pred_df[[0]],) * len(pred_df.columns), axis=1).astype(float)
+    visit_proba.columns = range(1, max_rep)
     w = visit_proba.copy()
-    w[-1] = 1
+    w[0] = 1
     w[max_rep] = 0
     w = w.sort_index(axis=1) \
          .diff(periods=-1, axis=1) \
@@ -166,12 +166,13 @@ def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
 
     w_df = pd.concat([w / w.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0)
     df_vals = df[range(max_rep)]
+
     df['min'] = (df_vals.cummin(axis=1) * w_df).mean(axis=1)
     df['mean'] = (df_vals.cumsum(axis=1) / range(1, df_vals.shape[1] + 1) * w_df).mean(axis=1)
 
     df['f'] = df['0_fit'].apply(lambda x: x[:-2])
     df = pd.pivot(df, columns='f', values=['min', 'mean'])
-    cnt = visit_proba.sum(axis=1).sum()
+    cnt = (visit_proba.sum(axis=1) + 1).sum()
     
     return df, cnt
 
@@ -236,14 +237,16 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
                       .sample(4, random_state=random_state)),
             n_iter=ITER_COUNT)
     
+    cl_dict = dict(zip(fit_cols, fit_labels))
+    
     print('f4 - f10')
-    stat_test(f4['min'], f10['min'])
+    stat_test(f4['min'], f10['min'], col_label_dict=cl_dict)
     
     print('f4 - RS-Models-AND')
-    stat_test(f4['min'], df_smart_and['min'])
+    stat_test(f4['min'], df_smart_and['min'], col_label_dict=cl_dict)
     
     print('f4 - RS-Models-OR')
-    stat_test(f4['min'], df_smart_or['min'])
+    stat_test(f4['min'], df_smart_or['min'], col_label_dict=cl_dict)
 
     labels = ['RS-Random-AND', 'RS-Models-AND',
               'RS-Random-OR', 'RS-Models-OR',
