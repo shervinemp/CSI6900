@@ -112,9 +112,7 @@ def plotRS(df, show=True):
     plt.show() if show else None
 
 def plotBox(df, output_file='rs_box.pdf', *, show=True):
-    
     t0 = time.time()
-
     sns.set()
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
@@ -129,13 +127,15 @@ def plotBox(df, output_file='rs_box.pdf', *, show=True):
     plt.show() if show else None
 
 def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
-    if method not in ('or', 'and'):
+    if method not in ('or', 'and', 'first'):
         raise ValueError(f"Method \"{method}\" is not valid.")
     if models is None:
         if method == 'and':
             visit_proba = np.logspace(1, max_rep, num=max_rep, base=p_thresh)
         elif method == 'or':
             visit_proba = np.logspace(1, max_rep, num=max_rep, base=1-p_thresh)
+        elif method == 'first':
+            visit_proba = np.ones(max_rep) * 0.5
         visit_proba = pd.DataFrame(visit_proba[np.newaxis, :].repeat(len(X), axis=0),
                                    columns=range(max_rep))    
     else:
@@ -146,6 +146,8 @@ def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
             visit_proba = pred_df.cumprod(axis=1)
         elif method == 'or':
             visit_proba = (~pred_df).cumprod(axis=1)
+        elif method == 'first':
+            visit_proba = pred_df[[0]].repeat(len(pred_df), axis=1)
     w = visit_proba.copy()
     w[-1] = 1
     w[max_rep] = 0
@@ -217,8 +219,8 @@ def get_last_iter(rs_df: pd.DataFrame):
 def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT), sf[1] )
     
-    df_random_or, cnt_random_or = search_split(smartFitness(X, models=None, method='or'))
-    df_smart_or, cnt_smart_or = search_split(smartFitness(X, models=models, method='or'))
+    df_random_or, cnt_random_or = search_split(smartFitness(X, models=None, method='first'))
+    df_smart_or, cnt_smart_or = search_split(smartFitness(X, models=models, method='first'))
     df_random_and, cnt_random_and = search_split(smartFitness(X, models=None, method='and'))
     df_smart_and, cnt_smart_and = search_split(smartFitness(X, models=models, method='and'))
 
