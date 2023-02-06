@@ -1,7 +1,7 @@
 import re
 import sys
 import time
-from typing import Sequence, Union
+from typing import Any, Dict, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -77,7 +77,8 @@ def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
         models.append(scores['estimator'][np.argmax(f1s)])
     return models
 
-def train(X, y, class_labels=None, method='dt', cv=5, **kwargs):
+def train(X: pd.DataFrame, y: pd.DataFrame, class_labels: Union[pd.DataFrame, None] = None,
+          method: str = 'dt', cv: int = 5, **kwargs) -> Tuple[Dict[str, Any], str]:
     if class_labels is None:
         class_labels = y
     X_b, y_b = balance_data(X, y, class_labels)
