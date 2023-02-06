@@ -71,7 +71,7 @@ def fit_range(X, rang: Union[Sequence[int], int]):
 
 def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
     models = []
-    for X_ in fit_cum_range(X, MAX_REPEAT):
+    for X_ in fit_cum_range(X, MAX_REPEAT-1):
         scores, desc = train(X_, y, class_labels, cv=cv, **kwargs)
         f1s = scores["test_f1"]
         models.append(scores['estimator'][np.argmax(f1s)])
