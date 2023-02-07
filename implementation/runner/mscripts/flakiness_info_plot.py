@@ -64,10 +64,10 @@ if __name__ == '__main__':
                  for x in t2}
     
     print("Data Range:")
-    pprint((df.max() - df.min()))
+    pprint(df_range_delta)
     
     print("Max Delta:")
-    pprint(df_range_delta)
+    pprint(delta.max())
 
     print("Hard flaky:")
     pprint(hard_flaky)
