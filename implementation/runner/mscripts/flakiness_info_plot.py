@@ -62,6 +62,12 @@ if __name__ == '__main__':
     mm_thresh = {x: pd.concat([(d:=((mi <= x * df_range_delta) & (ma > x * df_range_delta)).sum()),
                                d / len(data)], axis=1).rename(columns={0: 'count', 1: 'percent'}) \
                  for x in t2}
+    
+    print("Data Range:")
+    pprint((df.min(), df.max()))
+    
+    print("Max Delta:")
+    pprint(df_range_delta)
 
     print("Hard flaky:")
     pprint(hard_flaky)
