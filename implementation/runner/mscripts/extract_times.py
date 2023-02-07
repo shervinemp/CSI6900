@@ -11,9 +11,10 @@ def total_system_time(file_name):
         last_date = datetime.strptime(last_line[:19], "%m-%d-%Y %H:%M:%S")
         return (last_date - first_date).total_seconds()
 
-if __name__ == '__main__':
-	mfiles = glob('[[]*')
-	system_times = [total_system_time(e) for e in mfiles \
-				    if e[-4:] not in ('.ogv', '.log', '.csv')]
-	print(f"Avg system sim time: {sum(system_times) / len(system_times)}")
-			
+
+if __name__ == "__main__":
+    mfiles = glob("[[]*")
+    system_times = [
+        total_system_time(e) for e in mfiles if e[-4:] not in (".ogv", ".log", ".csv")
+    ]
+    print(f"Avg system sim time: {sum(system_times) / len(system_times)}")

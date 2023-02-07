@@ -24,17 +24,19 @@ EXP_REPEAT = 10
 
 HIST_SIZE = 25
 
+
 def RS(df: pd.DataFrame, n_iter: int, append_index: bool = True) -> pd.DataFrame:
     g_index = pd.RangeIndex(len(df)) // n_iter
     df_ = df.groupby(g_index, as_index=False).cummin()
-    df_['rs_iter'] = df.groupby(g_index).cumcount()
-    df_['rs_group'] = g_index
+    df_["rs_iter"] = df.groupby(g_index).cumcount()
+    df_["rs_group"] = g_index
     if append_index:
-        df_.set_index(['rs_group', 'rs_iter'], append=True, inplace=True)
+        df_.set_index(["rs_group", "rs_iter"], append=True, inplace=True)
     return df_
 
+
 # If this script is being run as the main script
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Create a pseudorandom number generator with the specified seed
     random_ = np.random.RandomState(seed=SEED)
 
@@ -43,11 +45,16 @@ if __name__ == '__main__':
     print(f"#Entries: {len(data)}")
 
     n_scene = ITER_COUNT * RS_REPEAT
-    df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=n_scene,
-                  agg_mode=('min', 'mean'), random_state=SEED)
-    
+    df = data.get(
+        min_rep=EXP_REPEAT,
+        max_rep=EXP_REPEAT,
+        count=n_scene,
+        agg_mode=("min", "mean"),
+        random_state=SEED,
+    )
+
     rs_res = RS(df, n_iter=ITER_COUNT)
-    rs_res = unstack_col_level(rs_res, 'agg_mode', level=0).reset_index()
+    rs_res = unstack_col_level(rs_res, "agg_mode", level=0).reset_index()
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
@@ -58,24 +65,25 @@ if __name__ == '__main__':
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a line plot of the data for the fitness value
-        sns.lineplot(x='rs_iter', y=col, hue='agg_mode', legend=False,
-                     data=rs_res, ax=ax)
-        
+        sns.lineplot(
+            x="rs_iter", y=col, hue="agg_mode", legend=False, data=rs_res, ax=ax
+        )
+
         ax.set_xlim((0, 50))
         ax.set_ylim(*ylim_dict[col])
 
         ax.set_xticks(range(0, 51, 10))
 
         # Set the x and y labels for the plot
-        ax.set(xlabel='iteration', ylabel=label)
+        ax.set(xlabel="iteration", ylabel=label)
 
         ax.margins(0)
     # Set the legend labels
-    fig.legend(labels=['RSwRep', 'RS'])
+    fig.legend(labels=["RSwRep", "RS"])
     # Tightly adjust the layout of the plots
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     # Save the plot to a file
-    plt.savefig('rs_plot.pdf', bbox_inches='tight')
+    plt.savefig("rs_plot.pdf", bbox_inches="tight")
     # Close the plot
     plt.close()
 
@@ -84,67 +92,72 @@ if __name__ == '__main__':
 
     # Create an array of histogram bin edges
     hist_bins = np.linspace(0, ITER_COUNT, HIST_SIZE + 1)
-    
+
     # Calculate the difference between non-minimum and minimum fitness values
-    diff = rs_res[rs_res.agg_mode == 'mean'] \
-            .set_index(['rs_group', 'rs_iter'])[fit_cols] \
-            .subtract(rs_res[rs_res.agg_mode == 'min'] \
-            .set_index(['rs_group', 'rs_iter'])[fit_cols]) \
-            .reset_index()
-    
+    diff = (
+        rs_res[rs_res.agg_mode == "mean"]
+        .set_index(["rs_group", "rs_iter"])[fit_cols]
+        .subtract(
+            rs_res[rs_res.agg_mode == "min"].set_index(["rs_group", "rs_iter"])[
+                fit_cols
+            ]
+        )
+        .reset_index()
+    )
+
     # Add a box column to the data based on the index of the data point
-    diff['box'] = diff['rs_iter'].apply(
+    diff["box"] = diff["rs_iter"].apply(
         lambda x: next(i for i, b in enumerate(hist_bins) if x < b) - 1
     )
 
     # Iterate over the fitness values
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a box plot of the data
-        sns.boxplot(x='box', y=col, data=diff, showmeans=True, ax=ax)
-        
+        sns.boxplot(x="box", y=col, data=diff, showmeans=True, ax=ax)
+
         # Set the x and y labels for the plot
-        ax.set(xlabel='iteration', ylabel=label)
-        
+        ax.set(xlabel="iteration", ylabel=label)
+
         # Set the x-axis tick labels
         ax.set_xticks([])
     # Tightly adjust the layout of the plots
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     # Save the plot to a file
-    plt.savefig('rs_diff_plot.pdf', bbox_inches='tight')
+    plt.savefig("rs_diff_plot.pdf", bbox_inches="tight")
     # Close the plot
     plt.close()
 
-    last_iter = rs_res.groupby(['rs_group', 'agg_mode', 'rs_iter']).last().reset_index()
-    a_ = last_iter[last_iter.agg_mode == 'min']
-    b_ = last_iter[last_iter.agg_mode == 'mean']
-    
+    last_iter = rs_res.groupby(["rs_group", "agg_mode", "rs_iter"]).last().reset_index()
+    a_ = last_iter[last_iter.agg_mode == "min"]
+    b_ = last_iter[last_iter.agg_mode == "mean"]
+
     df_end = pd.concat([a_, b_])
 
-    print('avg min:')
+    print("avg min:")
     pprint(a_[fit_cols].mean())
 
-    print('avg mean:')
+    print("avg mean:")
     pprint(b_[fit_cols].mean())
 
     print("min-mean")
     stat_test(a_, b_)
-    
+
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(4 * len(fit_cols), 4))
 
     # Iterate over the fitness values
-    for ax, col, label in zip(axes, fit_cols, fit_labels):        
+    for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a histogram of the data
-        sns.boxplot(data=df_end, x='agg_mode', y=col, orient='v', showmeans=True, ax=ax)
-        
+        sns.boxplot(data=df_end, x="agg_mode", y=col, orient="v", showmeans=True, ax=ax)
+
         # Set the x and y labels for the plot
         ax.set(xlabel="aggregation", ylabel=label)
         ax.set_ylim(*ylim_dict[col])
 
-        ax.set_xticklabels(['RSwRep', 'RS'])
+        ax.set_xticklabels(["RSwRep", "RS"])
     # Tightly adjust the layout of the plots
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     # Save the plot to a file
-    plt.savefig('end_box.pdf', bbox_inches='tight')
+    plt.savefig("end_box.pdf", bbox_inches="tight")
     # Close the plot
     plt.close()

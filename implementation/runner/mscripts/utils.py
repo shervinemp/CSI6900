@@ -9,27 +9,41 @@ def static_vars(**kwargs):
         for k, v in kwargs.items():
             if callable(v):
                 key = "__cached_" + k
+
                 def getter(self):
                     value = getattr(self, key, None)
                     if value is None:
                         value = v(self)
                         setattr(self, key, value)
                     return value
+
                 setattr(func, k, property(getter))
             else:
                 setattr(func, k, v)
         return func
+
     return decorate
 
+
 def unstack_col_level(df, var_name, *, level):
-    df_ = df.T \
-            .unstack(level=level) \
-            .T \
-            .reset_index(level=-1)
+    df_ = df.T.unstack(level=level).T.reset_index(level=-1)
     df_ = df_.rename(columns={df_.columns[0]: var_name})
     return df_
 
-def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, colors=None, legend_labels=None, bin_range=None, ax=None, return_type='axes'):
+
+def neg_histplot(
+    data,
+    y=None,
+    hue=None,
+    xlabel=None,
+    ylabel=None,
+    title=None,
+    colors=None,
+    legend_labels=None,
+    bin_range=None,
+    ax=None,
+    return_type="axes",
+):
     # Set the seaborn style
     sns.set()
     if isinstance(data, pd.DataFrame):
@@ -69,7 +83,16 @@ def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, c
         else:
             y_hue = y_data[i]
         # Plot the bars
-        ax.bar(pos, y_hue, color=colors[i], width=width, align='edge', edgecolor='white', alpha=0.7, linewidth=1)
+        ax.bar(
+            pos,
+            y_hue,
+            color=colors[i],
+            width=width,
+            align="edge",
+            edgecolor="white",
+            alpha=0.7,
+            linewidth=1,
+        )
         pos = [p + width for p in pos]
     # Set the x-axis range
     if bin_range:
@@ -78,7 +101,9 @@ def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, c
     if legend_labels:
         # Check if the number of labels matches the number of hue values
         if len(legend_labels) != len(hue_vals):
-            raise ValueError("Number of legend labels does not match number of hue values")
+            raise ValueError(
+                "Number of legend labels does not match number of hue values"
+            )
     elif isinstance(data, pd.DataFrame):
         # Use the hue values as the legend labels
         legend_labels = hue_vals
@@ -93,8 +118,8 @@ def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, c
         ax.set_title(title)
     # Use seaborn's despine function to remove the top and right spines
     sns.despine()
-    
-    if return_type == 'axes':
+
+    if return_type == "axes":
         return ax
-    elif return_type == 'fig':
+    elif return_type == "fig":
         return fig

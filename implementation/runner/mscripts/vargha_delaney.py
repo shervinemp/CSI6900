@@ -34,7 +34,9 @@ def VD_A(treatment: List[float], control: List[float]):
 
     # Compute the measure
     # A = (r1/m - (m+1)/2)/n # formula (14) in Vargha and Delaney, 2000
-    A = (2 * r1 - m * (m + 1)) / (2 * n * m)  # equivalent formula to avoid accuracy errors
+    A = (2 * r1 - m * (m + 1)) / (
+        2 * n * m
+    )  # equivalent formula to avoid accuracy errors
 
     levels = [0.147, 0.33, 0.474]  # effect sizes from Hess and Kromrey, 2004
     magnitude = ["negligible", "small", "medium", "large"]
@@ -75,7 +77,9 @@ def VD_A_DF(data, val_col: str = None, group_col: str = None, sort=True):
 
     x = data.copy()
     if sort:
-        x[group_col] = pd.Categorical(x[group_col], categories=x[group_col].unique(), ordered=True)
+        x[group_col] = pd.Categorical(
+            x[group_col], categories=x[group_col].unique(), ordered=True
+        )
         x.sort_values(by=[group_col, val_col], ascending=True, inplace=True)
 
     groups = x[group_col].unique()
@@ -84,12 +88,21 @@ def VD_A_DF(data, val_col: str = None, group_col: str = None, sort=True):
     g1, g2 = np.array(list(it.combinations(np.arange(groups.size), 2))).T
 
     # Compute effect size for each combination
-    ef = np.array([VD_A(list(x[val_col][x[group_col] == groups[i]].values),
-                        list(x[val_col][x[group_col] == groups[j]].values)) for i, j in zip(g1, g2)])
+    ef = np.array(
+        [
+            VD_A(
+                list(x[val_col][x[group_col] == groups[i]].values),
+                list(x[val_col][x[group_col] == groups[j]].values),
+            )
+            for i, j in zip(g1, g2)
+        ]
+    )
 
-    return pd.DataFrame({
-        'A': np.unique(data[group_col])[g1],
-        'B': np.unique(data[group_col])[g2],
-        'estimate': ef[:, 0],
-        'magnitude': ef[:, 1]
-    })
+    return pd.DataFrame(
+        {
+            "A": np.unique(data[group_col])[g1],
+            "B": np.unique(data[group_col])[g2],
+            "estimate": ef[:, 0],
+            "magnitude": ef[:, 1],
+        }
+    )
