@@ -1,5 +1,4 @@
 from functools import partial
-from itertools import product
 import re
 import sys
 import time
