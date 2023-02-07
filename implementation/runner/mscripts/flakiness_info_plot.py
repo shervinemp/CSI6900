@@ -64,7 +64,7 @@ if __name__ == '__main__':
                  for x in t2}
     
     print("Data Range:")
-    pprint((df.min(), df.max()))
+    pprint((df.max() - df.min()))
     
     print("Max Delta:")
     pprint(df_range_delta)
