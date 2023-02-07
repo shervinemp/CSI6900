@@ -1,18 +1,23 @@
-from pprint import pprint
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from scipy.stats import wilcoxon
-
-from vargha_delaney import VD_A
 
 
 def static_vars(**kwargs):
     def decorate(func):
         for k, v in kwargs.items():
-            setattr(func, k, v)
+            if callable(v):
+                key = "__cached_" + k
+                def getter(self):
+                    value = getattr(self, key, None)
+                    if value is None:
+                        value = v(self)
+                        setattr(self, key, value)
+                    return value
+                setattr(func, k, property(getter))
+            else:
+                setattr(func, k, v)
         return func
     return decorate
 
@@ -23,17 +28,6 @@ def unstack_col_level(df, var_name, *, level):
             .reset_index(level=-1)
     df_ = df_.rename(columns={df_.columns[0]: var_name})
     return df_
-
-def stat_test(a: pd.DataFrame, b: pd.DataFrame, col_label_dict=None):
-    if col_label_dict is None:
-        col_label_dict = {str(x): str(x) for x in a.columns.intersection(b.columns)}
-    print("wilcoxon:")
-    pprint({label: wilcoxon(a[col].to_list(), b[col].to_list()) \
-           for col, label in col_label_dict.items()})
-    
-    print("VD:")
-    pprint({label: VD_A(a[col].to_list(), b[col].to_list()) \
-           for col, label in col_label_dict.items()})
 
 def neg_histplot(data, y=None, hue=None, xlabel=None, ylabel=None, title=None, colors=None, legend_labels=None, bin_range=None, ax=None, return_type='axes'):
     # Set the seaborn style

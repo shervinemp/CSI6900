@@ -1,3 +1,5 @@
+from functools import partial
+from itertools import product
 import re
 import sys
 import time
@@ -16,7 +18,8 @@ from sklearn.tree import DecisionTreeClassifier
 
 from data_utils import CSVData, enum_cols, fit_cols, fit_labels, in_cols
 from post_RS import RS
-from utils import stat_test, static_vars, unstack_col_level
+from stat_utils import stat_test
+from utils import static_vars, unstack_col_level
 
 SEED = 0
 EXP_REPEAT = 10
@@ -127,7 +130,9 @@ def plotBox(df, output_file='rs_box.pdf', *, show=True):
     print(f'Plotting boxplots took {t1-t0} seconds. Output file: {output_file}')
     plt.show() if show else None
 
-def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
+def smartFitness(X: pd.DataFrame, models: Union[Sequence[Any], None] = None,
+                 method: str = 'or', max_rep: int = MAX_REPEAT, p_thresh: float = 0.5,
+                 n_ignore: Union[int, None] = None, n_continue: Union[int, None] = None):
     if method not in ('or', 'and', 'first'):
         raise ValueError(f"Method \"{method}\" is not valid.")
     if models is None:
@@ -139,7 +144,7 @@ def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
             visit_proba = np.ones(max_rep-1) * 0.5
         visit_proba = pd.DataFrame(visit_proba[np.newaxis, :].repeat(len(X), axis=0))
     else:
-        pred = np.array([m.predict(x) >= p_thresh \
+        pred = np.array([(m.predict(x) if hasattr(m, 'predict') else m(x)) >= p_thresh \
                          for m, x in zip(models, fit_cum_range(X, max_rep-1))]).T
         pred_df = pd.DataFrame(pred)
         if method == 'and':
@@ -148,6 +153,10 @@ def smartFitness(X, models=None, method='or', max_rep=MAX_REPEAT, p_thresh=0.5):
             visit_proba = (~pred_df).cumprod(axis=1)
         elif method == 'first':
             visit_proba = pd.concat((pred_df[[0]],) * len(pred_df.columns), axis=1).astype(float)
+    if n_ignore:
+        visit_proba.loc[:, :n_ignore] = 1
+    if n_continue:
+        visit_proba.loc[:, n_continue:] = visit_proba[[n_continue-1]]
     visit_proba.columns = range(1, max_rep)
     w = visit_proba.copy()
     w[0] = 1
@@ -186,7 +195,7 @@ def balance_data(X, y, class_labels=None, smote_instance=SMOTE(random_state=rand
     df_resampled, _ = smote_instance.fit_resample(df, class_labels)
     return df_resampled[X_cols], df_resampled[y_cols]
 
-def prep_data(df):
+def preprocess_data(df):
     df_ = df[fit_cols]
     
     max_delta = df_.max() - df_.min()
@@ -218,13 +227,15 @@ def prep_data(df):
 def get_last_iter(rs_df: pd.DataFrame):
     return rs_df.groupby(level=['rs_group', 'rs_iter']).last()
 
-def evaluate(X, y, models, *, suffix=None, random_state=SEED):
+def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     search_split = lambda sf: ( RS(sf[0], n_iter=ITER_COUNT), sf[1] )
     
-    df_random_or, cnt_random_or = search_split(smartFitness(X, models=None, method='first'))
-    df_smart_or, cnt_smart_or = search_split(smartFitness(X, models=models, method='first'))
-    df_random_and, cnt_random_and = search_split(smartFitness(X, models=None, method='and'))
-    df_smart_and, cnt_smart_and = search_split(smartFitness(X, models=models, method='and'))
+    df_random_first, cnt_random_first = search_split(smartFitness(X, models=None, method='first', **kwargs))
+    df_model_first, cnt_model_first = search_split(smartFitness(X, models=models, method='first', **kwargs))
+    df_random_or, cnt_random_or = search_split(smartFitness(X, models=None, method='or', **kwargs))
+    df_model_or, cnt_model_or = search_split(smartFitness(X, models=models, method='or', **kwargs))
+    df_random_and, cnt_random_and = search_split(smartFitness(X, models=None, method='and', **kwargs))
+    df_model_and, cnt_model_and = search_split(smartFitness(X, models=models, method='and', **kwargs))
 
     agg_func = lambda x: CSVData._aggregate(x, agg_mode=('min', 'mean')) \
                                 .loc[x.index.unique()] \
@@ -237,45 +248,71 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED):
     f4 = RS(agg_func(y.groupby(level=y.index.names) \
                       .sample(4, random_state=random_state)),
             n_iter=ITER_COUNT)
-    
-    cl_dict = dict(zip(fit_cols, fit_labels))
-    
-    print('f4 - f10')
-    stat_test(f4['min'], f10['min'], col_label_dict=cl_dict)
-    
-    print('f4 - RS-Models-AND')
-    stat_test(f4['min'], df_smart_and['min'], col_label_dict=cl_dict)
-    
-    print('f4 - RS-Models-OR')
-    stat_test(f4['min'], df_smart_or['min'], col_label_dict=cl_dict)
 
-    labels = ['RS-Random-AND', 'RS-Models-AND',
-              'RS-Random-OR', 'RS-Models-OR',
-              'RSw4REP', 'RSw10REP', 'RS']
-    df_min_box = pd.concat([df_random_and['min'], df_smart_and['min'],
-                            df_random_or['min'], df_smart_or['min'],
-                            f4['min'], f10['min'], f10['mean']], axis=1)
-    df_min_box.columns = pd.MultiIndex.from_product([labels, fit_cols])
-    df_min_box = unstack_col_level(df_min_box, 'method', level=0).reset_index()
+    labels = ['RS-Random-FIRST', 'RS-Model-FIRST',
+              'RS-Random-OR', 'RS-Model-OR',
+              'RS-Random-AND', 'RS-Model-AND',
+              'RSw4REP', 'RSw10REP', 'RSw10REP-MEAN']
     
-    plotBox(df_min_box, output_file='rs_box' + f'_{suffix}' if suffix else '' + '.pdf', show=False)
+    res_arr = [df_random_first['min'], df_model_first['min'],
+               df_random_or['min'], df_model_or['min'],
+               df_random_and['min'], df_model_and['min'],
+               f4['min'], f10['min'], f10['mean']]
+    
+    plotBoxMulti(res_arr, labels, suffix=suffix)
 
     if suffix:
         print(f"{suffix}:")
+    
+    rs_stats_f4 = partial(rs_stats, baseline=f4['min'], base_label='f4')
+    rs_stats_f4(f10['min'], label='f10')
+    for r, l in zip(res_arr[:-3], labels[:-3]):
+        rs_stats_f4(r, label=l)
+    
+    rs_stats(df_random_first['min'], df_model_first['min'],
+             labels[0], labels[1],
+             cnt_random_first, cnt_model_first)
+    
+    rs_stats(df_random_or['min'], df_model_or['min'],
+             labels[2], labels[3],
+             cnt_random_or, cnt_model_or)
+    
+    rs_stats(df_random_and['min'], df_model_and['min'],
+             labels[4], labels[5],
+             cnt_random_and, cnt_model_and)
 
-    print(f'Number of iterations for RS in random mode OR: {cnt_random_or}')
-    print(f'Number of iterations for smart RS with models OR: {cnt_smart_or}')
-    print(f'Number of iterations for RS in random mode AND: {cnt_random_and}')
-    print(f'Number of iterations for smart RS with models AND: {cnt_smart_and}')
+@static_vars(cl_dict=dict(zip(fit_cols, fit_labels)))
+def rs_stats(results: pd.DataFrame, baseline: pd.DataFrame, label: str, base_label: str = 'baseline',
+             count: Union[int, None] = None, base_count: Union[int, None] = None):
+    print(f'{base_label} / {label}')
+    stat_test(results, baseline, col_label_dict=rs_stats.cl_dict)
+    if count and base_count:
+        print(f'#iterations - {label} / {base_label}: {count} / {base_count}')
+    elif count:
+        print(f'#iterations - {label}: {count}')
+    elif base_count:
+        print(f'#iterations - {base_label}: {base_count}')
+
+def plotBoxMulti(dfs: Sequence[pd.DataFrame], labels: Sequence[str], *, suffix=None):
+    df_min_box = pd.concat(dfs, axis=1, ignore_index=True)
+    df_min_box.columns = pd.MultiIndex.from_tuples([(l, c) for l, df in zip(labels, dfs) \
+                                                    for c in df.columns])
+    df_min_box = unstack_col_level(df_min_box, 'method', level=0).reset_index()
+    
+    plotBox(df_min_box, output_file='rs_box' + f'_{suffix}' if suffix else '' + '.pdf', show=False)
 
 if __name__  == '__main__':
     # Read in a list of experiments from a file specified as the first command line argument
     data = CSVData(sys.argv[1])
     df = data.get(min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED)
-    X, y, slabels, hlabels = prep_data(df)
+    X, y, slabels, hlabels = preprocess_data(df)
 
     smodels = train_models(X, slabels)
     evaluate(X, y, smodels, suffix='soft', random_state=SEED)
 
     hmodels = train_models(X, hlabels)
     evaluate(X, y, hmodels, suffix='hard', random_state=SEED)
+
+    delta_model = lambda X: ((df:=X[get_fit_cols(X)]).max(axis=1) - df.min(axis=1)) >= 0.1
+    dmodels = (delta_model,) * (MAX_REPEAT-1)
+    evaluate(X, y, dmodels, suffix='delta', random_state=SEED, n_ignore=1)

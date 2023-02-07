@@ -7,7 +7,8 @@ import pandas as pd
 import seaborn as sns
 
 from data_utils import CSVData, fit_cols, fit_labels
-from utils import stat_test, unstack_col_level
+from stat_utils import stat_test
+from utils import unstack_col_level
 
 # Seed for the pseudorandom number generator
 SEED = 0
