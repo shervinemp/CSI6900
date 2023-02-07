@@ -129,8 +129,8 @@ def plotBox(df, output_file='rs_box.pdf', *, show=True):
     print(f'Plotting boxplots took {t1-t0} seconds. Output file: {output_file}')
     plt.show() if show else None
 
-def smartFitness(X: pd.DataFrame, models: Union[Sequence[Any], None] = None,
-                 method: str = 'or', max_rep: int = MAX_REPEAT, p_thresh: float = 0.5,
+def smartFitness(X: pd.DataFrame, models: Union[Sequence[Any], None] = None, method: str = 'or',
+                 max_rep: int = MAX_REPEAT, p_thresh: Union[float, None] = 0.5,
                  n_ignore: Union[int, None] = None, n_continue: Union[int, None] = None):
     if method not in ('or', 'and', 'first'):
         raise ValueError(f"Method \"{method}\" is not valid.")
@@ -140,10 +140,11 @@ def smartFitness(X: pd.DataFrame, models: Union[Sequence[Any], None] = None,
         elif method == 'or':
             visit_proba = np.logspace(1, max_rep-1, num=max_rep-1, base=1-p_thresh)
         elif method == 'first':
-            visit_proba = np.ones(max_rep-1) * 0.5
+            visit_proba = np.ones(max_rep-1) * p_thresh
         visit_proba = pd.DataFrame(visit_proba[np.newaxis, :].repeat(len(X), axis=0))
     else:
-        pred = np.array([(m.predict(x) if hasattr(m, 'predict') else m(x)) >= p_thresh \
+        predict = lambda m, x: m.predict(x) if hasattr(m, 'predict') else m(x)
+        pred = np.array([predict(m, x) if p_thresh is None else predict(m, x) >= p_thresh \
                          for m, x in zip(models, fit_cum_range(X, max_rep-1))]).T
         pred_df = pd.DataFrame(pred)
         if method == 'and':
