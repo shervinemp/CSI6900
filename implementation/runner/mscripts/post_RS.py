@@ -36,10 +36,12 @@ def RS(df: pd.DataFrame, n_iter: int, append_index: bool = True) -> pd.DataFrame
     return df_
 
 
-def get_last_iter(rs_df: pd.DataFrame, 
-                  *,
-                  groupby: Union[int, str, Sequence[Union[int, str]], None] = None,
-                  as_index: bool = False):
+def get_last_iter(
+    rs_df: pd.DataFrame,
+    *,
+    groupby: Union[int, str, Sequence[Union[int, str]], None] = None,
+    as_index: bool = False,
+):
     by_ = ["rs_group", "rs_iter"]
     if groupby is not None:
         by_ = [*([groupby] if isinstance(groupby, (int, str)) else groupby), *by_]

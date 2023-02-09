@@ -132,7 +132,9 @@ def plot_rs(df: pd.DataFrame, output_file: str = "rs_iters.pdf", *, show: bool =
         plt.show()
 
 
-def plot_converge_vals(df: pd.DataFrame, output_file: str = "rs_conv.pdf", *, show: bool = True):
+def plot_converge_vals(
+    df: pd.DataFrame, output_file: str = "rs_conv.pdf", *, show: bool = True
+):
     sns.set()
     data = get_last_iter(df, groupby="method")
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
@@ -218,7 +220,7 @@ def smartFitness(
     df["f"] = df["0_fit"].apply(lambda x: x[:-2])
     df = pd.pivot(df, columns="f", values=["min", "mean"])
     cnt = (visit_proba.sum(axis=1) + 1).sum()
-    cnt =int(np.round(cnt))
+    cnt = int(np.round(cnt))
 
     return df, cnt
 
