@@ -12,8 +12,14 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 from data_utils import fit_cols
-from rq3_data import (balance_data, fit_cum_range, get_data, get_hard_labels,
-                      get_soft_labels, hstack_runs)
+from rq3_data import (
+    balance_data,
+    fit_cum_range,
+    get_data,
+    get_hard_labels,
+    get_soft_labels,
+    hstack_runs,
+)
 
 SEED = 0
 MAX_REPEAT = 4
@@ -69,7 +75,9 @@ def train(
     X_b, y_b = balance_data(X, y, class_labels)
     y_b = y_b[y_b.columns[0]]
     if method == "dt":
-        scores, desc = trainDecisionTree(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
+        scores, desc = trainDecisionTree(
+            X_b, y_b, cv=cv, random_state=random_state, **kwargs
+        )
     elif method == "svm":
         scores, desc = trainSVM(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
     elif method == "mlp":
@@ -110,6 +118,7 @@ def test(scores, desc, X, y, output_file="rq3.txt"):
         f.write(f"    - mean: {np.mean(f1s)}\n")
         f.write(f"    - best: {np.max(f1s)}\n")
         f.write("\n")
+
 
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument

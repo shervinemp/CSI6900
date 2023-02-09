@@ -13,19 +13,15 @@ EXP_REPEAT = 10
 COUNT = 1000
 
 
-def get_data(csv_addr: str, *, print_len: bool =True, **kwargs):
+def get_data(csv_addr: str, *, print_len: bool = True, **kwargs):
     csv = CSVData(csv_addr)
     if print_len:
         print(f"#Entries: {len(csv)}")
 
     data = csv.get(
-        min_rep=EXP_REPEAT,
-        max_rep=EXP_REPEAT,
-        count=COUNT,
-        random_state=SEED,
-        **kwargs
+        min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED, **kwargs
     )
-    
+
     return data
 
 
@@ -58,6 +54,7 @@ def fit_cum_range(X, rang: Union[Sequence[int], int]):
         rang = range(rang)
     yield from (fit_range(X, i + 1) for i in rang)
 
+
 def hstack_runs(df):
     df_fit = df.copy()
     df_fit["i"] = df_fit.groupby(level=in_cols).cumcount()
@@ -68,8 +65,9 @@ def hstack_runs(df):
     one_hot = pd.get_dummies(X[enum_cols])
     X = X.drop(columns=enum_cols).join(one_hot)
     y = df
-    
-    return X,y
+
+    return X, y
+
 
 def get_soft_labels(df: pd.DataFrame):
     max_delta = df.max() - df.min()
@@ -81,8 +79,9 @@ def get_soft_labels(df: pd.DataFrame):
         .astype(int)
         .reset_index(drop=True)
     )
-    
+
     return slabels
+
 
 def get_hard_labels(df: pd.DataFrame):
     hlabels = (
@@ -93,5 +92,5 @@ def get_hard_labels(df: pd.DataFrame):
         .astype(int)
         .reset_index(drop=True)
     )
-    
+
     return hlabels

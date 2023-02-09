@@ -9,8 +9,14 @@ from matplotlib import pyplot as plt
 
 from data_utils import CSVData, fit_cols, fit_labels
 from post_RS import RS, get_last_iter
-from rq3_data import (fit_cum_range, get_data, get_fit_cols, get_hard_labels,
-                      get_soft_labels, hstack_runs)
+from rq3_data import (
+    fit_cum_range,
+    get_data,
+    get_fit_cols,
+    get_hard_labels,
+    get_soft_labels,
+    hstack_runs,
+)
 from rq3_models import MAX_REPEAT, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, static_vars, unstack_col_level

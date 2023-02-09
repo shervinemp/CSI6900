@@ -35,7 +35,9 @@ def hstack_with_labels(dfs, labels):
     column_tuples = []
     for label, df in zip(labels, dfs):
         for column in df.columns:
-            column_tuple = (label, *column) if isinstance(column, tuple) else (label, column)
+            column_tuple = (
+                (label, *column) if isinstance(column, tuple) else (label, column)
+            )
             column_tuples.append(column_tuple)
 
     stacked = pd.concat(dfs, axis=1, ignore_index=True)
