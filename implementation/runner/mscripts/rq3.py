@@ -1,121 +1,22 @@
-import re
 import sys
-import time
 from functools import partial
-from typing import Any, Dict, Sequence, Tuple, Union
+from typing import Any, Sequence, Union
 
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from imblearn.over_sampling import SMOTE
 from matplotlib import pyplot as plt
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import StratifiedKFold, cross_validate
-from sklearn.neural_network import MLPClassifier
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
 
-from data_utils import CSVData, enum_cols, fit_cols, fit_labels, in_cols
+from data_utils import CSVData, fit_cols, fit_labels
 from post_RS import RS, get_last_iter
+from rq3_data import (fit_cum_range, get_data, get_fit_cols, get_hard_labels,
+                      get_soft_labels, hstack_runs)
+from rq3_models import MAX_REPEAT, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, static_vars, unstack_col_level
 
 SEED = 0
-EXP_REPEAT = 10
-COUNT = 1000
 ITER_COUNT = 50
-MAX_REPEAT = 4
-
-# Create a pseudorandom number generator with the specified seed
-random_ = np.random.RandomState(seed=SEED)
-
-
-def train_model(model, X, y, *, cv=5):
-    cv = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_)
-    scores = cross_validate(
-        model, X, y, cv=cv, scoring=["precision", "recall", "f1"], return_estimator=True
-    )
-    desc = str(model)
-    return scores, desc
-
-
-def trainDecisionTree(X, y, *, cv=5, **kwargs):
-    kwargs.setdefault("max_depth", 5)
-    model = DecisionTreeClassifier(**kwargs)
-    return train_model(model, X, y, cv=cv)
-
-
-def trainSVM(X, y, *, cv=5, **kwargs):
-    model = SVC(**kwargs)
-    return train_model(model, X, y, cv=cv)
-
-
-def trainMLP(X, y, *, cv=5, **kwargs):
-    kwargs.setdefault("hidden_layer_sizes", (50, 100))
-    kwargs.setdefault("learning_rate", "adaptive")
-    model = MLPClassifier(**kwargs)
-    return train_model(model, X, y, cv=cv)
-
-
-def trainRF(X, y, *, cv=5, **kwargs):
-    kwargs.setdefault("max_depth", 5)
-    model = RandomForestClassifier(**kwargs)
-    return train_model(model, X, y, cv=cv)
-
-
-def fit_cum_range(X, rang: Union[Sequence[int], int]):
-    if type(rang) is int:
-        rang = range(rang)
-    yield from (fit_range(X, i + 1) for i in rang)
-
-
-@static_vars(regs=[re.compile(f"^{f}_\d+$") for f in fit_cols])
-def get_fit_cols(X):
-    return [
-        col for col in X.columns if np.any([r.match(col) for r in get_fit_cols.regs])
-    ]
-
-
-def fit_range(X, rang: Union[Sequence[int], int]):
-    if type(rang) is int:
-        rang = range(rang)
-    dcols = list(filter(lambda f: int(f.split("_")[-1]) not in rang, get_fit_cols(X)))
-    return X.drop(dcols, axis=1)
-
-
-def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
-    models = []
-    for X_ in fit_cum_range(X, MAX_REPEAT - 1):
-        scores, desc = train(X_, y, class_labels, cv=cv, **kwargs)
-        f1s = scores["test_f1"]
-        models.append(scores["estimator"][np.argmax(f1s)])
-    return models
-
-
-def train(
-    X: pd.DataFrame,
-    y: pd.DataFrame,
-    class_labels: Union[pd.DataFrame, None] = None,
-    method: str = "dt",
-    cv: int = 5,
-    **kwargs,
-) -> Tuple[Dict[str, Any], str]:
-    if class_labels is None:
-        class_labels = y
-    X_b, y_b = balance_data(X, y, class_labels)
-    y_b = y_b[y_b.columns[0]]
-    if method == "dt":
-        scores, desc = trainDecisionTree(X_b, y_b, cv=cv, **kwargs)
-    elif method == "svm":
-        scores, desc = trainSVM(X_b, y_b, cv=cv, **kwargs)
-    elif method == "mlp":
-        scores, desc = trainMLP(X_b, y_b, cv=cv, **kwargs)
-    elif method == "rf":
-        scores, desc = trainRF(X_b, y_b, cv=cv, **kwargs)
-    else:
-        raise ValueError(f'Method "{method}" not supported.')
-
-    return scores, desc
 
 
 def plot_rs(df: pd.DataFrame, output_file: str = "rs_iters.pdf", *, show: bool = True):
@@ -225,48 +126,13 @@ def smartFitness(
     return df, cnt
 
 
-def balance_data(X, y, class_labels=None, smote_instance=SMOTE(random_state=random_)):
-    if class_labels is None:
-        class_labels = y
-    X_cols = X.columns
-    y_cols = y.columns
-    df = pd.concat([X, y], axis=1)
-    df_resampled, _ = smote_instance.fit_resample(df, class_labels)
-    return df_resampled[X_cols], df_resampled[y_cols]
-
-
-def preprocess_data(df):
-    df_ = df[fit_cols]
-
-    max_delta = df_.max() - df_.min()
-    delta = df_.groupby(level=in_cols).agg(lambda f: f.max() - f.min())
-    slabels = (
-        (delta / max_delta >= 0.01)
-        .any(axis=1)
-        .to_frame("label")
-        .astype(int)
-        .reset_index(drop=True)
-    )
-    hlabels = (
-        df_.groupby(level=in_cols)
-        .agg(lambda f: (f > 0).any() & (f <= 0).any())
-        .any(axis=1)
-        .to_frame("label")
-        .astype(int)
-        .reset_index(drop=True)
-    )
-
-    df_fit = df_.copy()
-    df_fit["i"] = df_fit.groupby(level=in_cols).cumcount()
-    df_fit = df_fit.pivot(columns=["i"], values=fit_cols)
-    df_fit.columns = [f"{f}_{i}" for f, i in df_fit.columns]
-
-    X = df_fit.reset_index()
-    one_hot = pd.get_dummies(X[enum_cols])
-    X = X.drop(columns=enum_cols).join(one_hot)
-    y = df_
-
-    return X, y, slabels, hlabels
+def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
+    models = []
+    for X_ in fit_cum_range(X, MAX_REPEAT - 1):
+        scores, desc = train(X_, y, class_labels, cv=cv, **kwargs)
+        f1s = scores["test_f1"]
+        models.append(scores["estimator"][np.argmax(f1s)])
+    return models
 
 
 def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
@@ -402,11 +268,11 @@ def rs_stats(
 
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
-    data = CSVData(sys.argv[1])
-    df = data.get(
-        min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED
-    )
-    X, y, slabels, hlabels = preprocess_data(df)
+    df = get_data(sys.argv[1])
+
+    X, y = hstack_runs(df[fit_cols])
+    slabels = get_soft_labels(df[fit_cols])
+    hlabels = get_hard_labels(df[fit_cols])
 
     smodels = train_models(X, slabels)
     evaluate(X, y, smodels, suffix="soft", random_state=SEED)

@@ -1,13 +1,85 @@
 import os
 import sys
+from typing import Any, Dict, Tuple, Union
 
 import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.model_selection import StratifiedKFold, cross_validate
+from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
 
-from data_utils import CSVData
-from rq3 import COUNT, EXP_REPEAT, MAX_REPEAT, fit_cum_range, preprocess_data, train
+from data_utils import fit_cols
+from rq3_data import (balance_data, fit_cum_range, get_data, get_hard_labels,
+                      get_soft_labels, hstack_runs)
 
 SEED = 0
+MAX_REPEAT = 4
+
+# Create a pseudorandom number generator with the specified seed
+random_ = np.random.RandomState(seed=SEED)
+
+
+def train_model(model, X, y, *, cv=5, random_state=None):
+    cv = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
+    scores = cross_validate(
+        model, X, y, cv=cv, scoring=["precision", "recall", "f1"], return_estimator=True
+    )
+    desc = str(model)
+    return scores, desc
+
+
+def trainDecisionTree(X, y, *, cv=5, random_state=None, **kwargs):
+    kwargs.setdefault("max_depth", 5)
+    model = DecisionTreeClassifier(**kwargs)
+    return train_model(model, X, y, cv=cv, random_state=random_state)
+
+
+def trainSVM(X, y, *, cv=5, random_state=None, **kwargs):
+    model = SVC(**kwargs)
+    return train_model(model, X, y, cv=cv, random_state=random_state)
+
+
+def trainMLP(X, y, *, cv=5, random_state=None, **kwargs):
+    kwargs.setdefault("hidden_layer_sizes", (50, 100))
+    kwargs.setdefault("learning_rate", "adaptive")
+    model = MLPClassifier(**kwargs)
+    return train_model(model, X, y, cv=cv, random_state=random_state)
+
+
+def trainRF(X, y, *, cv=5, random_state=None, **kwargs):
+    kwargs.setdefault("max_depth", 5)
+    model = RandomForestClassifier(**kwargs)
+    return train_model(model, X, y, cv=cv, random_state=random_state)
+
+
+def train(
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+    class_labels: Union[pd.DataFrame, None] = None,
+    method: str = "dt",
+    cv: int = 5,
+    random_state: Union[np.random.RandomState, int, None] = None,
+    **kwargs,
+) -> Tuple[Dict[str, Any], str]:
+    if class_labels is None:
+        class_labels = y
+    X_b, y_b = balance_data(X, y, class_labels)
+    y_b = y_b[y_b.columns[0]]
+    if method == "dt":
+        scores, desc = trainDecisionTree(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
+    elif method == "svm":
+        scores, desc = trainSVM(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
+    elif method == "mlp":
+        scores, desc = trainMLP(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
+    elif method == "rf":
+        scores, desc = trainRF(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
+    else:
+        raise ValueError(f'Method "{method}" not supported.')
+
+    return scores, desc
 
 
 def test(scores, desc, X, y, output_file="rq3.txt"):
@@ -39,19 +111,17 @@ def test(scores, desc, X, y, output_file="rq3.txt"):
         f.write(f"    - best: {np.max(f1s)}\n")
         f.write("\n")
 
-
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
-    data = CSVData(sys.argv[1])
-    df_train, df_test = data.get(
-        min_rep=EXP_REPEAT,
-        max_rep=EXP_REPEAT,
-        count=COUNT,
-        split=0.8,
-        random_state=SEED,
-    )
-    X_train, y_train, sl_train, hl_train = preprocess_data(df_train)
-    X_test, y_test, sl_test, hl_test = preprocess_data(df_test)
+    df_train, df_test = get_data(sys.argv[1], split=0.8)
+
+    X_train, y_train = hstack_runs(df_train[fit_cols])
+    sl_train = get_soft_labels(df_train[fit_cols])
+    hl_train = get_hard_labels(df_train[fit_cols])
+
+    X_test, y_test = hstack_runs(df_test[fit_cols])
+    sl_test = get_soft_labels(df_test[fit_cols])
+    hl_test = get_hard_labels(df_test[fit_cols])
 
     methods = ("dt", "rf", "svm", "mlp")
     mparams = ({"max_depth": 5}, {"max_depth": 5}, {}, {"max_iter": 1000})

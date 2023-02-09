@@ -7,22 +7,15 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from data_utils import CSVData, fit_cols, fit_labels
+from data_utils import fit_cols, fit_labels
+from rq3_data import get_data
 from stat_utils import stat_test
 from utils import unstack_col_level
 
 # Seed for the pseudorandom number generator
 SEED = 0
-
 # Number of experiments in each group
 ITER_COUNT = 50
-
-# Maximum number of groups to create (if not None)
-RS_REPEAT = 20
-
-# Maximum number of experiment repeats
-EXP_REPEAT = 10
-
 HIST_SIZE = 25
 
 
@@ -54,17 +47,7 @@ if __name__ == "__main__":
     random_ = np.random.RandomState(seed=SEED)
 
     # Read in a list of experiments from a file specified as the first command line argument
-    data = CSVData(sys.argv[1])
-    print(f"#Entries: {len(data)}")
-
-    n_scene = ITER_COUNT * RS_REPEAT
-    df = data.get(
-        min_rep=EXP_REPEAT,
-        max_rep=EXP_REPEAT,
-        count=n_scene,
-        agg_mode=("min", "mean"),
-        random_state=SEED,
-    )
+    df = get_data(sys.argv[1], agg_mode=("min", "mean"))
 
     rs_res = RS(df, n_iter=ITER_COUNT)
     rs_res = unstack_col_level(rs_res, "agg_mode", level=0).reset_index()
