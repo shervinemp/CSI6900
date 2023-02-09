@@ -1,5 +1,6 @@
 import sys
 from pprint import pprint
+from typing import Sequence, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,6 +34,16 @@ def RS(df: pd.DataFrame, n_iter: int, append_index: bool = True) -> pd.DataFrame
     if append_index:
         df_.set_index(["rs_group", "rs_iter"], append=True, inplace=True)
     return df_
+
+
+def get_last_iter(rs_df: pd.DataFrame, 
+                  *,
+                  groupby: Union[int, str, Sequence[Union[int, str]], None] = None,
+                  as_index: bool = False):
+    by_ = ["rs_group", "rs_iter"]
+    if groupby is not None:
+        by_ = [*([groupby] if isinstance(groupby, (int, str)) else groupby), *by_]
+    return rs_df.groupby(by_, as_index=as_index).last()
 
 
 # If this script is being run as the main script
@@ -127,7 +138,7 @@ if __name__ == "__main__":
     # Close the plot
     plt.close()
 
-    last_iter = rs_res.groupby(["rs_group", "agg_mode", "rs_iter"]).last().reset_index()
+    last_iter = get_last_iter(rs_res, groupby="agg_mode")
     a_ = last_iter[last_iter.agg_mode == "min"]
     b_ = last_iter[last_iter.agg_mode == "mean"]
 
@@ -140,7 +151,7 @@ if __name__ == "__main__":
     pprint(b_[fit_cols].mean())
 
     print("min-mean")
-    stat_test(a_, b_)
+    stat_test(a_[fit_cols], b_[fit_cols])
 
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(4 * len(fit_cols), 4))

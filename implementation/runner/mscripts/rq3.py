@@ -1,7 +1,7 @@
-from functools import partial
 import re
 import sys
 import time
+from functools import partial
 from typing import Any, Dict, Sequence, Tuple, Union
 
 import numpy as np
@@ -16,9 +16,9 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 from data_utils import CSVData, enum_cols, fit_cols, fit_labels, in_cols
-from post_RS import RS
+from post_RS import RS, get_last_iter
 from stat_utils import stat_test
-from utils import static_vars, unstack_col_level
+from utils import hstack_with_labels, static_vars, unstack_col_level
 
 SEED = 0
 EXP_REPEAT = 10
@@ -118,39 +118,33 @@ def train(
     return scores, desc
 
 
-def plotRS(df, show=True):
-    output_file = "rs_carla_iters.pdf"
-    t0 = time.time()
+def plot_rs(df: pd.DataFrame, output_file: str = "rs_iters.pdf", *, show: bool = True):
     sns.set()
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
-        sns.lineplot(data=df, x="x", y=col, hue="method", ax=ax)
+        sns.lineplot(data=df, x="rs_iter", y=col, hue="method", ax=ax)
         ax.set_xlabel("Iteration")
         ax.set_ylabel(label)
         ax.legend(loc="lower left", fontsize=8)
     fig.tight_layout()
     plt.savefig(output_file, bbox_inches="tight")
-    t1 = time.time()
-    print(
-        f"Plotting random search fitnesses took {t1-t0} seconds. Output file: {output_file}"
-    )
-    plt.show() if show else None
+    if show:
+        plt.show()
 
 
-def plotBox(df, output_file="rs_box.pdf", *, show=True):
-    t0 = time.time()
+def plot_converge_vals(df: pd.DataFrame, output_file: str = "rs_conv.pdf", *, show: bool = True):
     sns.set()
+    data = get_last_iter(df, groupby="method")
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
     for ax, col, label in zip(axes, fit_cols, fit_labels):
-        sns.boxplot(data=df, x="method", y=col, showmeans=True, ax=ax)
+        sns.boxplot(data=data, x="method", y=col, showmeans=True, ax=ax)
         ax.set_ylabel(label)
         ax.legend([], [], frameon=False)
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
     fig.tight_layout()
     plt.savefig(output_file, bbox_inches="tight")
-    t1 = time.time()
-    print(f"Plotting boxplots took {t1-t0} seconds. Output file: {output_file}")
-    plt.show() if show else None
+    if show:
+        plt.show()
 
 
 def smartFitness(
@@ -224,6 +218,7 @@ def smartFitness(
     df["f"] = df["0_fit"].apply(lambda x: x[:-2])
     df = pd.pivot(df, columns="f", values=["min", "mean"])
     cnt = (visit_proba.sum(axis=1) + 1).sum()
+    cnt =int(np.round(cnt))
 
     return df, cnt
 
@@ -270,10 +265,6 @@ def preprocess_data(df):
     y = df_
 
     return X, y, slabels, hlabels
-
-
-def get_last_iter(rs_df: pd.DataFrame):
-    return rs_df.groupby(level=["rs_group", "rs_iter"]).last()
 
 
 def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
@@ -337,7 +328,20 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         f10["mean"],
     ]
 
-    plotBoxMulti(res_arr, labels, suffix=suffix)
+    res_dfs = hstack_with_labels(res_arr, labels)
+    res_dfs = unstack_col_level(res_dfs, "method", level=0).reset_index()
+
+    plot_converge_vals(
+        res_dfs,
+        output_file="rs_conv" + f"_{suffix}" if suffix else "" + ".pdf",
+        show=False,
+    )
+
+    plot_rs(
+        res_dfs,
+        output_file="rs_iters" + f"_{suffix}" if suffix else "" + ".pdf",
+        show=False,
+    )
 
     if suffix:
         print(f"{suffix}:")
@@ -392,20 +396,6 @@ def rs_stats(
         print(f"#iterations - {label}: {count}")
     elif base_count:
         print(f"#iterations - {base_label}: {base_count}")
-
-
-def plotBoxMulti(dfs: Sequence[pd.DataFrame], labels: Sequence[str], *, suffix=None):
-    df_min_box = pd.concat(dfs, axis=1, ignore_index=True)
-    df_min_box.columns = pd.MultiIndex.from_tuples(
-        [(l, c) for l, df in zip(labels, dfs) for c in df.columns]
-    )
-    df_min_box = unstack_col_level(df_min_box, "method", level=0).reset_index()
-
-    plotBox(
-        df_min_box,
-        output_file="rs_box" + f"_{suffix}" if suffix else "" + ".pdf",
-        show=False,
-    )
 
 
 if __name__ == "__main__":

@@ -31,6 +31,18 @@ def unstack_col_level(df, var_name, *, level):
     return df_
 
 
+def hstack_with_labels(dfs, labels):
+    column_tuples = []
+    for label, df in zip(labels, dfs):
+        for column in df.columns:
+            column_tuple = (label, *column) if isinstance(column, tuple) else (label, column)
+            column_tuples.append(column_tuple)
+
+    stacked = pd.concat(dfs, axis=1, ignore_index=True)
+    stacked.columns = pd.MultiIndex.from_tuples(column_tuples)
+    return stacked
+
+
 def neg_histplot(
     data,
     y=None,
