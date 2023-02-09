@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 from data_utils import CSVData
-from rq3 import COUNT, EXP_REPEAT, MAX_REPEAT, fit_cum_range, prep_data, train
+from rq3 import COUNT, EXP_REPEAT, MAX_REPEAT, fit_cum_range, preprocess_data, train
 
 SEED = 0
 
@@ -50,8 +50,8 @@ if __name__ == "__main__":
         split=0.8,
         random_state=SEED,
     )
-    X_train, y_train, sl_train, hl_train = prep_data(df_train)
-    X_test, y_test, sl_test, hl_test = prep_data(df_test)
+    X_train, y_train, sl_train, hl_train = preprocess_data(df_train)
+    X_test, y_test, sl_test, hl_test = preprocess_data(df_test)
 
     methods = ("dt", "rf", "svm", "mlp")
     mparams = ({"max_depth": 5}, {"max_depth": 5}, {}, {"max_iter": 1000})
