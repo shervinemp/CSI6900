@@ -9,8 +9,7 @@ from matplotlib import pyplot as plt
 
 from data_utils import CSVDataLoader, fit_cols, fit_labels
 from post_RS import RS, get_last_iter
-from rq3_data import (fit_cum_range, get_fit_cols, get_hard_labels,
-                      get_soft_labels, get_X_y)
+from rq3_data import fit_range, get_X_y
 from rq3_models import MAX_REPEAT, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, static_vars, unstack_col_level
@@ -67,8 +66,8 @@ def smartFitness(
     w = w.sort_index(axis=1).diff(periods=-1, axis=1).drop(columns=[max_rep])
 
     t = []
-    for i in range(max_rep):
-        value_vars = [f"{f}_{i}" for f in fit_cols]
+    for i in range(1, max_rep + 1):
+        value_vars = [(f, i) for f in fit_cols]
         var_name = f"{i}_fit"
         X_melt = X.melt(
             value_vars=value_vars, var_name=var_name, value_name=i, ignore_index=False
@@ -79,14 +78,14 @@ def smartFitness(
     w_df = pd.concat(
         [w / w.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0
     )
-    df_vals = df[range(max_rep)]
+    df_vals = df[range(1, max_rep + 1)]
 
     df["min"] = (df_vals.cummin(axis=1) * w_df).mean(axis=1)
     df["mean"] = (df_vals.cumsum(axis=1) / range(1, df_vals.shape[1] + 1) * w_df).mean(
         axis=1
     )
 
-    df["f"] = df["0_fit"].apply(lambda x: x[:-2])
+    df["f"] = df["1_fit"]
     df = pd.pivot(df, columns="f", values=["min", "mean"])
     cnt = (visit_proba.sum(axis=1) + 1).sum()
     cnt = int(np.round(cnt))
@@ -121,7 +120,7 @@ def get_visit_proba(
         pred = np.array(
             [
                 predict(m, x) if p_thresh is None else predict(m, x) >= p_thresh
-                for m, x in zip(models, fit_cum_range(X, max_rep - 1))
+                for m, x in zip(models, (fit_range(X, i) for i in range(1, max_rep)))
             ]
         ).T
         pred_df = pd.DataFrame(pred)
@@ -142,7 +141,7 @@ def get_visit_proba(
 
 def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
     models = []
-    for X_ in fit_cum_range(X, MAX_REPEAT - 1):
+    for X_ in (fit_range(X, i) for i in range(1, MAX_REPEAT)):
         scores, desc = train(X_, y, class_labels, cv=cv, **kwargs)
         f1s = scores["test_f1"]
         models.append(scores["estimator"][np.argmax(f1s)])
@@ -285,8 +284,8 @@ if __name__ == "__main__":
     df = CSVDataLoader(sys.argv[1]).get()
 
     X, y = get_X_y(df)
-    slabels = get_soft_labels(df)
-    hlabels = get_hard_labels(df)
+    slabels = df.get_soft_labels()
+    hlabels = df.get_hard_labels()
 
     smodels = train_models(X, slabels)
     evaluate(X, y, smodels, suffix="soft", random_state=SEED)
@@ -295,7 +294,7 @@ if __name__ == "__main__":
     evaluate(X, y, hmodels, suffix="hard", random_state=SEED)
 
     delta_model = (
-        lambda X: ((df := X[get_fit_cols(X)]).max(axis=1) - df.min(axis=1)) >= 0.1
+        lambda X: (X.max(axis=1) - X.min(axis=1)) >= 0.1
     )
     dmodels = (delta_model,) * (MAX_REPEAT - 1)
     evaluate(X, y, dmodels, suffix="delta", random_state=SEED, n_ignore=1)

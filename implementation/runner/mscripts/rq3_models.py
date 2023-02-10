@@ -12,7 +12,7 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 from data_utils import CSVDataLoader, balance_data
-from rq3_data import fit_cum_range, get_hard_labels, get_soft_labels, get_X_y
+from rq3_data import fit_range, get_X_y
 
 SEED = 0
 MAX_REPEAT = 4
@@ -66,7 +66,7 @@ def train(
     if class_labels is None:
         class_labels = y
     X_b, y_b = balance_data(X, y, class_labels)
-    y_b = y_b[y_b.columns[0]]
+    y_b = y_b.iloc[:, 0]
     if method == "dt":
         scores, desc = trainDecisionTree(
             X_b, y_b, cv=cv, random_state=random_state, **kwargs
@@ -118,12 +118,12 @@ if __name__ == "__main__":
     df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.8)
 
     X_train, y_train = get_X_y(df_train)
-    sl_train = get_soft_labels(df_train)
-    hl_train = get_hard_labels(df_train)
+    sl_train = df_train.get_soft_labels()
+    hl_train = df_train.get_hard_labels()
 
     X_test, y_test = get_X_y(df_test)
-    sl_test = get_soft_labels(df_test)
-    hl_test = get_hard_labels(df_test)
+    sl_test = df_test.get_soft_labels()
+    hl_test = df_test.get_hard_labels()
 
     methods = ("dt", "rf", "svm", "mlp")
     mparams = ({"max_depth": 5}, {"max_depth": 5}, {}, {"max_iter": 1000})
@@ -131,8 +131,8 @@ if __name__ == "__main__":
     if os.path.exists("rq3.txt"):
         os.remove("rq3.txt")
     for method, kwparams in zip(methods, mparams):
-        for X_train_, X_test_ in zip(
-            fit_cum_range(X_train, MAX_REPEAT), fit_cum_range(X_test, MAX_REPEAT)
-        ):
+        for i in range(MAX_REPEAT):
+            X_train_ = fit_range(X_train, i + 1)
+            X_test_ = fit_range(X_test, i + 1)
             m, d = train(X_train_, sl_train, method=method, **kwparams)
             test(m, d, X_test_, sl_test, output_file="rq3.txt")

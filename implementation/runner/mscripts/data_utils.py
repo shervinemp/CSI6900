@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import cached_property, reduce
 from glob import glob
-from typing import Iterable, Union
+from typing import Iterable, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -53,14 +53,24 @@ def get_fv_files(fv):
     )
 
 
-def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: str = None, smote_instance=SMOTE(random_state=SEED)):
+def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: str = None, smote_instance=None):
+    if smote_instance is None:
+        smote_instance = SMOTE(random_state=SEED)
     if class_labels is None:
         class_labels = y
+    if X.shape[0] != y.shape[0]:
+        raise ValueError("X and y must have the same number of rows.")
     X_cols = X.columns
     y_cols = y.columns
+    X.columns = range(X.shape[1])
+    y.columns = range(y.shape[1])
     df = pd.concat([X, y], axis=1)
     df_resampled, _ = smote_instance.fit_resample(df, class_labels)
-    return df_resampled[X_cols], df_resampled[y_cols]
+    X_resampled = df_resampled.iloc[:, :X.shape[1]]
+    y_resampled = df_resampled.iloc[:, X.shape[1]:]
+    X_resampled.columns = X_cols
+    y_resampled.columns = y_cols
+    return X_resampled, y_resampled
 
 
 class CSVData(pd.DataFrame):
@@ -80,14 +90,39 @@ class CSVData(pd.DataFrame):
     def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self)
     
+    def get_soft_labels(self, thresh=0.01) -> pd.DataFrame:
+        max_delta = self.max() - self.min()
+        delta = self.groupby(level=in_cols).agg(lambda f: f.max() - f.min())
+        slabels = (
+            (delta / max_delta >= thresh)
+            .any(axis=1)
+            .to_frame("label")
+            .astype(int)
+            .reset_index(drop=True)
+        )
+
+        return slabels
+
+
+    def get_hard_labels(self) -> pd.DataFrame:
+        hlabels = (
+            self.groupby(level=in_cols)
+            .agg(lambda f: (f > 0).any() & (f <= 0).any())
+            .any(axis=1)
+            .to_frame("label")
+            .astype(int)
+            .reset_index(drop=True)
+        )
+
+        return hlabels
+    
     def hstack_repeats(self, inplace: bool = False) -> pd.DataFrame:
         df_ = self if inplace else self.copy()
+        cols = df_.columns
         df_["i"] = df_.groupby(level=in_cols).cumcount()
-        df_ = df_.pivot(columns=["i"], values=fit_cols)
-        df_.columns = [f"{f}_{i}" for f, i in df_.columns]
-        df_ = df_.to_df()
+        df_ = df_.pivot(columns=["i"], values=cols)
 
-        return df_
+        return df_.to_df()
 
     def sample_by_index(
         self,
@@ -140,10 +175,10 @@ class CSVData(pd.DataFrame):
 
 
 class CSVDataLoader:
-    def __init__(self, filepath):
+    def __init__(self, filepath, index=in_cols):
         self._df = pd.read_csv(filepath, index_col=0)
         # Set the index of the DataFrame
-        self._df.set_index(in_cols, inplace=True)
+        self._df.set_index(index, inplace=True)
         # Sort the index
         self._df.sort_index(inplace=True)
 
@@ -156,6 +191,7 @@ class CSVDataLoader:
         count: Union[int, None] = COUNT,
         min_rep: Union[int, None] = EXP_REPEAT,
         max_rep: Union[int, None] = EXP_REPEAT,
+        columns: Sequence[Union[str, int]] = fit_cols,
         randomize: bool = True,
         random_state: Union[int, np.random.RandomState, None] = SEED,
         agg_mode: Union[str, Iterable[str], None] = None,
@@ -163,7 +199,7 @@ class CSVDataLoader:
         agg_test_split: bool = False,
     ) -> pd.DataFrame:
 
-        df = CSVData(self._df)[fit_cols]
+        df = CSVData(self._df)[columns]
         if min_rep:
             df = df.groupby(level=in_cols).filter(
                 lambda group: group.shape[0] >= min_rep
@@ -214,8 +250,6 @@ class CSVDataLoader:
         if print_len:
             print(f"#Entries: {len(csv)}")
 
-        data = csv.get(
-            min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED, **kwargs
-        )
+        data = csv.get(**kwargs)
 
         return data
