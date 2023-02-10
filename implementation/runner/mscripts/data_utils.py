@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 from functools import cached_property, reduce
 from glob import glob
 from typing import Iterable, Union
 
 import numpy as np
 import pandas as pd
+from imblearn.over_sampling import SMOTE
+
+SEED = 0
+EXP_REPEAT = 10
+COUNT = 1000
 
 in_cols = [
     "Road type",
@@ -46,7 +53,93 @@ def get_fv_files(fv):
     )
 
 
-class CSVData:
+def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: str = None, smote_instance=SMOTE(random_state=SEED)):
+    if class_labels is None:
+        class_labels = y
+    X_cols = X.columns
+    y_cols = y.columns
+    df = pd.concat([X, y], axis=1)
+    df_resampled, _ = smote_instance.fit_resample(df, class_labels)
+    return df_resampled[X_cols], df_resampled[y_cols]
+
+
+class CSVData(pd.DataFrame):
+    def __init__(self, data: Union[pd.DataFrame, CSVData], *args, **kwargs):
+            if (
+                kwargs.get("copy") is None
+                and isinstance(data, pd.DataFrame)
+                and not isinstance(data, CSVData)
+            ):
+                kwargs.update(copy=True)
+            super().__init__(data, *args, **kwargs)
+    
+    @property
+    def _constructor(self):
+        return CSVData
+    
+    def to_df(self) -> pd.DataFrame:
+        return pd.DataFrame(self)
+    
+    def hstack_repeats(self, inplace: bool = False) -> pd.DataFrame:
+        df_ = self if inplace else self.copy()
+        df_["i"] = df_.groupby(level=in_cols).cumcount()
+        df_ = df_.pivot(columns=["i"], values=fit_cols)
+        df_.columns = [f"{f}_{i}" for f, i in df_.columns]
+        df_ = df_.to_df()
+
+        return df_
+
+    def sample_by_index(
+        self,
+        count: int,
+        *,
+        return_sorted: bool = False,
+        random_state: Union[int, np.random.RandomState, None] = None,
+    ) -> CSVData:
+        sample = self.loc[
+            self.index.unique().to_series().sample(count, random_state=random_state)
+        ]
+        if return_sorted:
+            sample = sample.sort_index()
+        return sample
+
+    def aggregate(
+        self,
+        agg_mode: Union[str, Iterable[str]],
+        *,
+        randomize: bool = False,
+        random_state: Union[int, np.random.RandomState, None] = None,
+    ) -> CSVData:
+
+        if isinstance(agg_mode, str):
+            multi_agg = False
+            agg_mode = (agg_mode,)
+        else:
+            multi_agg = True
+
+        repeats = self.groupby(level=list(range(self.index.nlevels)))
+        if randomize:
+            repeats = repeats.sample(frac=1, random_state=random_state).groupby(
+                level=list(range(self.index.nlevels))
+            )
+
+        df_ = reduce(
+            lambda l, r: l.merge(r, left_index=True, right_index=True),
+            map(lambda func: repeats.agg(func), agg_mode),
+        )
+        if multi_agg:
+            if self.columns.nlevels == 1:
+                ncols = pd.MultiIndex.from_product([agg_mode, self.columns])
+            else:
+                ncols = pd.MultiIndex.from_tuples(
+                    [(a, *c) for a in agg_mode for c in self.columns]
+                )
+            df_.columns = ncols
+
+        return df_
+
+
+class CSVDataLoader:
     def __init__(self, filepath):
         self._df = pd.read_csv(filepath, index_col=0)
         # Set the index of the DataFrame
@@ -60,17 +153,17 @@ class CSVData:
 
     def get(
         self,
-        count: Union[int, None] = None,
-        min_rep: Union[int, None] = None,
-        max_rep: Union[int, None] = None,
+        count: Union[int, None] = COUNT,
+        min_rep: Union[int, None] = EXP_REPEAT,
+        max_rep: Union[int, None] = EXP_REPEAT,
         randomize: bool = True,
-        random_state: Union[int, np.random.RandomState, None] = None,
+        random_state: Union[int, np.random.RandomState, None] = SEED,
         agg_mode: Union[str, Iterable[str], None] = None,
         split: Union[float, None] = None,
         agg_test_split: bool = False,
     ) -> pd.DataFrame:
 
-        df = self._df
+        df = CSVData(self._df)[fit_cols]
         if min_rep:
             df = df.groupby(level=in_cols).filter(
                 lambda group: group.shape[0] >= min_rep
@@ -80,22 +173,22 @@ class CSVData:
         if count or randomize:
             if count is None:
                 count = self.__len__()
-            df = CSVData._sample_index(
-                df, count, return_sorted=(randomize is False), random_state=random_state
+            df = df.sample_by_index(
+                count, return_sorted=(randomize is False), random_state=random_state
             )
 
         if split:
             df = (
                 (
-                    train := CSVData._sample_index(
-                        df, int(count * split), random_state=random_state
+                    train := df.sample_by_index(
+                        int(count * split), random_state=random_state
                     )
                 ),
                 df.drop(train.index.to_list()),
             )
         if agg_mode:
-            agg_func = lambda x: CSVData._aggregate(
-                df=x, agg_mode=agg_mode, randomize=randomize, random_state=random_state
+            agg_func = lambda df: df.aggregate(
+                agg_mode=agg_mode, randomize=randomize, random_state=random_state
             )
             if split:
                 if agg_test_split:
@@ -114,54 +207,15 @@ class CSVData:
     def __len__(self) -> int:
         # Return the number of indices of the DataFrame
         return len(self.indices)
-
+    
     @staticmethod
-    def _sample_index(
-        df: pd.DataFrame,
-        count: int,
-        *,
-        return_sorted: bool = False,
-        random_state: Union[int, np.random.RandomState, None] = None,
-    ):
-        sample = df.loc[
-            df.index.unique().to_series().sample(count, random_state=random_state)
-        ]
-        if return_sorted:
-            sample = sample.sort_index()
-        return sample
+    def load_data(csv_addr: str, *, print_len: bool = True, **kwargs):
+        csv = CSVDataLoader(csv_addr)
+        if print_len:
+            print(f"#Entries: {len(csv)}")
 
-    @staticmethod
-    def _aggregate(
-        df: pd.DataFrame,
-        agg_mode: Union[str, Iterable[str]],
-        *,
-        randomize: bool = False,
-        random_state: Union[int, np.random.RandomState, None] = None,
-    ):
-
-        if isinstance(agg_mode, str):
-            multi_agg = False
-            agg_mode = (agg_mode,)
-        else:
-            multi_agg = True
-
-        repeats = df.groupby(level=list(range(df.index.nlevels)))
-        if randomize:
-            repeats = repeats.sample(frac=1, random_state=random_state).groupby(
-                level=list(range(df.index.nlevels))
-            )
-
-        df_ = reduce(
-            lambda l, r: pd.merge(l, r, left_index=True, right_index=True),
-            map(lambda func: repeats.agg(func), agg_mode),
+        data = csv.get(
+            min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED, **kwargs
         )
-        if multi_agg:
-            if df.columns.nlevels == 1:
-                ncols = pd.MultiIndex.from_product([agg_mode, df.columns])
-            else:
-                ncols = pd.MultiIndex.from_tuples(
-                    [(a, *c) for a in agg_mode for c in df.columns]
-                )
-            df_.columns = ncols
 
-        return df_
+        return data

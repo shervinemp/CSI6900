@@ -7,16 +7,10 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-from data_utils import CSVData, fit_cols, fit_labels
+from data_utils import CSVDataLoader, fit_cols, fit_labels
 from post_RS import RS, get_last_iter
-from rq3_data import (
-    fit_cum_range,
-    get_data,
-    get_fit_cols,
-    get_hard_labels,
-    get_soft_labels,
-    hstack_runs,
-)
+from rq3_data import (fit_cum_range, get_fit_cols, get_hard_labels,
+                      get_soft_labels, get_X_y)
 from rq3_models import MAX_REPEAT, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, static_vars, unstack_col_level
@@ -164,8 +158,8 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     )
 
     agg_func = (
-        lambda x: CSVData._aggregate(x, agg_mode=("min", "mean"))
-        .loc[x.index.unique()]
+        lambda df: df.aggregate(agg_mode=("min", "mean"))
+        .loc[df.index.unique()]
         .reset_index()
     )
 
@@ -274,11 +268,11 @@ def rs_stats(
 
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
-    df = get_data(sys.argv[1])
+    df = CSVDataLoader(sys.argv[1]).get()
 
-    X, y = hstack_runs(df[fit_cols])
-    slabels = get_soft_labels(df[fit_cols])
-    hlabels = get_hard_labels(df[fit_cols])
+    X, y = get_X_y(df)
+    slabels = get_soft_labels(df)
+    hlabels = get_hard_labels(df)
 
     smodels = train_models(X, slabels)
     evaluate(X, y, smodels, suffix="soft", random_state=SEED)

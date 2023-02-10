@@ -7,8 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from data_utils import fit_cols, fit_labels
-from rq3_data import get_data
+from data_utils import CSVDataLoader, fit_cols, fit_labels
 from stat_utils import stat_test
 from utils import unstack_col_level
 
@@ -47,7 +46,7 @@ if __name__ == "__main__":
     random_ = np.random.RandomState(seed=SEED)
 
     # Read in a list of experiments from a file specified as the first command line argument
-    df = get_data(sys.argv[1], agg_mode=("min", "mean"))
+    df = CSVDataLoader(sys.argv[1]).get(agg_mode=("min", "mean"))
 
     rs_res = RS(df, n_iter=ITER_COUNT)
     rs_res = unstack_col_level(rs_res, "agg_mode", level=0).reset_index()

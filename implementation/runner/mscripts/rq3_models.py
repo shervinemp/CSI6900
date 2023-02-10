@@ -11,15 +11,8 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
-from data_utils import fit_cols
-from rq3_data import (
-    balance_data,
-    fit_cum_range,
-    get_data,
-    get_hard_labels,
-    get_soft_labels,
-    hstack_runs,
-)
+from data_utils import CSVDataLoader, balance_data
+from rq3_data import fit_cum_range, get_hard_labels, get_soft_labels, get_X_y
 
 SEED = 0
 MAX_REPEAT = 4
@@ -122,15 +115,15 @@ def test(scores, desc, X, y, output_file="rq3.txt"):
 
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
-    df_train, df_test = get_data(sys.argv[1], split=0.8)
+    df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.8)
 
-    X_train, y_train = hstack_runs(df_train[fit_cols])
-    sl_train = get_soft_labels(df_train[fit_cols])
-    hl_train = get_hard_labels(df_train[fit_cols])
+    X_train, y_train = get_X_y(df_train)
+    sl_train = get_soft_labels(df_train)
+    hl_train = get_hard_labels(df_train)
 
-    X_test, y_test = hstack_runs(df_test[fit_cols])
-    sl_test = get_soft_labels(df_test[fit_cols])
-    hl_test = get_hard_labels(df_test[fit_cols])
+    X_test, y_test = get_X_y(df_test)
+    sl_test = get_soft_labels(df_test)
+    hl_test = get_hard_labels(df_test)
 
     methods = ("dt", "rf", "svm", "mlp")
     mparams = ({"max_depth": 5}, {"max_depth": 5}, {}, {"max_iter": 1000})

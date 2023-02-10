@@ -3,36 +3,9 @@ from typing import Sequence, Union
 
 import numpy as np
 import pandas as pd
-from imblearn.over_sampling import SMOTE
 
 from data_utils import CSVData, enum_cols, fit_cols, in_cols
 from utils import static_vars
-
-SEED = 0
-EXP_REPEAT = 10
-COUNT = 1000
-
-
-def get_data(csv_addr: str, *, print_len: bool = True, **kwargs):
-    csv = CSVData(csv_addr)
-    if print_len:
-        print(f"#Entries: {len(csv)}")
-
-    data = csv.get(
-        min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED, **kwargs
-    )
-
-    return data
-
-
-def balance_data(X, y, class_labels=None, smote_instance=SMOTE(random_state=SEED)):
-    if class_labels is None:
-        class_labels = y
-    X_cols = X.columns
-    y_cols = y.columns
-    df = pd.concat([X, y], axis=1)
-    df_resampled, _ = smote_instance.fit_resample(df, class_labels)
-    return df_resampled[X_cols], df_resampled[y_cols]
 
 
 @static_vars(regs=[re.compile(f"^{f}_\d+$") for f in fit_cols])
@@ -55,13 +28,8 @@ def fit_cum_range(X, rang: Union[Sequence[int], int]):
     yield from (fit_range(X, i + 1) for i in rang)
 
 
-def hstack_runs(df):
-    df_fit = df.copy()
-    df_fit["i"] = df_fit.groupby(level=in_cols).cumcount()
-    df_fit = df_fit.pivot(columns=["i"], values=fit_cols)
-    df_fit.columns = [f"{f}_{i}" for f, i in df_fit.columns]
-
-    X = df_fit.reset_index()
+def get_X_y(df: CSVData):
+    X = df.hstack_repeats().reset_index()
     one_hot = pd.get_dummies(X[enum_cols])
     X = X.drop(columns=enum_cols).join(one_hot)
     y = df
