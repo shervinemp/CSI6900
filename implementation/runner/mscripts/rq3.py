@@ -53,45 +53,13 @@ def plot_converge_vals(
 def smartFitness(
     X: pd.DataFrame,
     models: Union[Sequence[Any], None] = None,
-    method: str = "or",
+    method: str = "first",
     max_rep: int = MAX_REPEAT,
     p_thresh: Union[float, None] = 0.5,
     n_ignore: Union[int, None] = None,
     n_continue: Union[int, None] = None,
 ):
-    if method not in ("or", "and", "first"):
-        raise ValueError(f'Method "{method}" is not valid.')
-    if models is None:
-        if method == "and":
-            visit_proba = np.logspace(1, max_rep - 1, num=max_rep - 1, base=p_thresh)
-        elif method == "or":
-            visit_proba = np.logspace(
-                1, max_rep - 1, num=max_rep - 1, base=1 - p_thresh
-            )
-        elif method == "first":
-            visit_proba = np.ones(max_rep - 1) * p_thresh
-        visit_proba = pd.DataFrame(visit_proba[np.newaxis, :].repeat(len(X), axis=0))
-    else:
-        predict = lambda m, x: m.predict(x) if hasattr(m, "predict") else m(x)
-        pred = np.array(
-            [
-                predict(m, x) if p_thresh is None else predict(m, x) >= p_thresh
-                for m, x in zip(models, fit_cum_range(X, max_rep - 1))
-            ]
-        ).T
-        pred_df = pd.DataFrame(pred)
-        if method == "and":
-            visit_proba = pred_df.cumprod(axis=1)
-        elif method == "or":
-            visit_proba = (~pred_df).cumprod(axis=1)
-        elif method == "first":
-            visit_proba = pd.concat(
-                (pred_df[[0]],) * len(pred_df.columns), axis=1
-            ).astype(float)
-    if n_ignore:
-        visit_proba.loc[:, :n_ignore] = 1
-    if n_continue:
-        visit_proba.loc[:, n_continue:] = visit_proba[[n_continue - 1]]
+    visit_proba = get_visit_proba(X, models, method, max_rep, p_thresh, n_ignore, n_continue)
     visit_proba.columns = range(1, max_rep)
     w = visit_proba.copy()
     w[0] = 1
@@ -124,6 +92,52 @@ def smartFitness(
     cnt = int(np.round(cnt))
 
     return df, cnt
+
+
+def get_visit_proba(
+    X: pd.DataFrame,
+    models: Union[Sequence[Any], None] = None,
+    method: str = "first",
+    max_rep: int = MAX_REPEAT,
+    p_thresh: Union[float, None] = 0.5,
+    n_ignore: Union[int, None] = None,
+    n_continue: Union[int, None] = None,
+):
+    if method not in ("or", "and", "first"):
+        raise ValueError(f'Method "{method}" is not valid.')
+    
+    if models is None:
+        if method == "and":
+            visit_proba = np.logspace(1, max_rep - 1, num=max_rep - 1, base=p_thresh)
+        elif method == "or":
+            visit_proba = np.logspace(
+                1, max_rep - 1, num=max_rep - 1, base=1 - p_thresh
+            )
+        elif method == "first":
+            visit_proba = np.ones(max_rep - 1) * p_thresh
+        visit_proba = pd.DataFrame(visit_proba[np.newaxis, :].repeat(len(X), axis=0))
+    else:
+        predict = lambda m, x: m.predict(x) if hasattr(m, "predict") else m(x)
+        pred = np.array(
+            [
+                predict(m, x) if p_thresh is None else predict(m, x) >= p_thresh
+                for m, x in zip(models, fit_cum_range(X, max_rep - 1))
+            ]
+        ).T
+        pred_df = pd.DataFrame(pred)
+        if method == "and":
+            visit_proba = pred_df.cumprod(axis=1)
+        elif method == "or":
+            visit_proba = (~pred_df).cumprod(axis=1)
+        elif method == "first":
+            visit_proba = pd.concat(
+                (pred_df[[0]],) * len(pred_df.columns), axis=1
+            ).astype(float)
+    if n_ignore:
+        visit_proba.loc[:, :n_ignore] = 1
+    if n_continue:
+        visit_proba.loc[:, n_continue:] = visit_proba[[n_continue - 1]]
+    return visit_proba
 
 
 def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
