@@ -215,13 +215,13 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
 
     plot_converge_vals(
         res_dfs,
-        output_file="rs_conv" + f"_{suffix}" if suffix else "" + ".pdf",
+        output_file="rs_conv" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
     )
 
     plot_rs(
         res_dfs,
-        output_file="rs_iters" + f"_{suffix}" if suffix else "" + ".pdf",
+        output_file="rs_iters" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
     )
 
