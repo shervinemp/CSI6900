@@ -108,7 +108,7 @@ if __name__ == "__main__":
     # Iterate over the fitness values
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a box plot of the data
-        sns.boxplot(x="box", y=col, data=diff, showmeans=True, ax=ax)
+        sns.boxplot(data=diff, x="box", y=col, showmeans=True, ax=ax)
 
         # Set the x and y labels for the plot
         ax.set(xlabel="iteration", ylabel=label)
@@ -123,19 +123,17 @@ if __name__ == "__main__":
     plt.close()
 
     last_iter = get_last_iter(rs_res, groupby="agg_mode")
-    a_ = last_iter[last_iter.agg_mode == "min"]
-    b_ = last_iter[last_iter.agg_mode == "mean"]
-
-    df_end = pd.concat([a_, b_])
+    l_iter_min = last_iter[last_iter.agg_mode == "min"][fit_cols]
+    l_iter_mean = last_iter[last_iter.agg_mode == "mean"][fit_cols]
 
     print("avg min:")
-    pprint(a_[fit_cols].mean())
+    pprint(l_iter_min.mean())
 
     print("avg mean:")
-    pprint(b_[fit_cols].mean())
+    pprint(l_iter_mean.mean())
 
     print("min-mean")
-    stat_test(a_[fit_cols], b_[fit_cols])
+    stat_test(l_iter_min, l_iter_mean)
 
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(4 * len(fit_cols), 4))
@@ -143,7 +141,7 @@ if __name__ == "__main__":
     # Iterate over the fitness values
     for ax, col, label in zip(axes, fit_cols, fit_labels):
         # Create a histogram of the data
-        sns.boxplot(data=df_end, x="agg_mode", y=col, orient="v", showmeans=True, ax=ax)
+        sns.boxplot(data=last_iter, x="agg_mode", y=col, orient="v", showmeans=True, ax=ax)
 
         # Set the x and y labels for the plot
         ax.set(xlabel="aggregation", ylabel=label)
