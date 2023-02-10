@@ -3,7 +3,7 @@ from typing import Sequence, Union
 
 import pandas as pd
 
-from data_utils import CSVData, enum_cols, fit_cols
+from data_utils import Data, enum_cols, fit_cols
 
 
 def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
@@ -15,7 +15,7 @@ def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
     return fit_X
 
 
-def get_X_y(df: CSVData):
+def get_X_y(df: Data):
     X = df.hstack_repeats().reset_index()
     one_hot = pd.get_dummies(X[enum_cols])
     X = X.drop(columns=enum_cols, level=0).join(one_hot)

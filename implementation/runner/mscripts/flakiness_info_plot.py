@@ -7,7 +7,7 @@ import pandas as pd
 import seaborn as sns
 from scipy.stats import wilcoxon
 
-from data_utils import CSVData, fit_cols, fit_labels, in_cols
+from data_utils import Data, fit_cols, fit_labels, in_cols
 from utils import neg_histplot
 
 # Seed for the pseudorandom number generator
@@ -27,7 +27,7 @@ random_ = np.random.RandomState(seed=SEED)
 # If this script is being run as the main script
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
-    data = CSVData(sys.argv[1])
+    data = Data(sys.argv[1])
     print(f"#Entries: {len(data)}")
 
     df = data.get(

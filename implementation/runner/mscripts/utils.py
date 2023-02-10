@@ -1,3 +1,4 @@
+from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -25,7 +26,7 @@ def static_vars(**kwargs):
     return decorate
 
 
-def unstack_col_level(df, var_name, *, level):
+def unstack_col_level(df: pd.DataFrame, var_name: str, *, level: Union[int, str]):
     df_ = df.T.unstack(level=level).T.reset_index(level=-1)
     df_ = df_.rename(columns={df_.columns[0]: var_name})
     return df_

@@ -1,3 +1,4 @@
+from itertools import cycle
 import sys
 from functools import partial
 from typing import Any, Sequence, Union
@@ -7,7 +8,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-from data_utils import CSVDataLoader, fit_cols, fit_labels
+from data_utils import CSVDataLoader, fit_cols, fit_labels, melt_multi
 from post_RS import RS, get_last_iter
 from rq3_data import fit_range, get_X_y
 from rq3_models import MAX_REPEAT, train
@@ -61,20 +62,14 @@ def smart_fitness(
     t_proba = get_transition_proba(X, models, method, max_rep, p_thresh, n_ignore, n_continue)
     h_proba = get_halt_proba(t_proba)
 
-    t = []
-    for i in range(max_rep):
-        value_vars = [(f, i) for f in fit_cols]
-        var_name = f"{i + 1}_var"
-        value_name = i + 1
-        X_melt = X.melt(
-            value_vars=value_vars, var_name=var_name, value_name=value_name, ignore_index=False
-        )
-        t.append(X_melt)
-    df = pd.concat(t, axis=1)
+    value_vars_arr = [[(f, i) for f in fit_cols] for i in range(max_rep)]
+    var_names = [f"{i}_var" for i in range(1, max_rep + 1)]
+    value_names = list(range(1, max_rep + 1))
+    df = melt_multi(X, value_vars_arr=value_vars_arr, var_names=var_names, value_names=value_names, ignore_index=False)
 
-    w = pd.concat(
-        [h_proba / h_proba.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0
-    )
+    mean_of_rows = h_proba.mean(axis=1).to_numpy()
+    normalized_h_proba = h_proba / mean_of_rows[:, np.newaxis]
+    w = pd.concat([normalized_h_proba] * len(fit_cols), axis=0)
     vals = df[range(1, max_rep + 1)]
 
     df["min"] = (vals.cummin(axis=1) * w).mean(axis=1)

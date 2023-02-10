@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import cached_property, reduce
 from glob import glob
+from itertools import cycle
 from typing import Iterable, Sequence, Union
 
 import numpy as np
@@ -53,6 +54,39 @@ def get_fv_files(fv):
     )
 
 
+def get_level_from_index(df: pd.DataFrame):
+    return list(range(df.index.nlevels))
+
+
+def melt_multi(
+    frame: pd.DataFrame,
+    id_vars_arr=None,
+    value_vars_arr=None,
+    var_names=None,
+    value_names=None,
+    col_level=None,
+    ignore_index: bool = True,
+) -> pd.DataFrame:
+    
+    id_vars_arr = id_vars_arr or cycle([None])
+    value_vars_arr = value_vars_arr or cycle([None])
+    var_names = var_names or cycle([None])
+    value_names = value_names or cycle([None])
+
+    frame_multi = pd.concat([frame.melt(
+        id_vars=id_vars,
+        value_vars=value_vars,
+        var_name=var_name,
+        value_name=value_name,
+        col_level=col_level,
+        ignore_index=ignore_index
+    ) for id_vars, value_vars, var_name, value_name in zip(
+        id_vars_arr, value_vars_arr, var_names, value_names
+    )], axis=1)
+
+    return frame_multi
+
+
 def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: str = None, smote_instance=None):
     if smote_instance is None:
         smote_instance = SMOTE(random_state=SEED)
@@ -73,26 +107,26 @@ def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: str = None, smo
     return X_resampled, y_resampled
 
 
-class CSVData(pd.DataFrame):
-    def __init__(self, data: Union[pd.DataFrame, CSVData], *args, **kwargs):
+class Data(pd.DataFrame):
+    def __init__(self, data: Union[pd.DataFrame, Data], *args, **kwargs):
             if (
                 kwargs.get("copy") is None
                 and isinstance(data, pd.DataFrame)
-                and not isinstance(data, CSVData)
+                and not isinstance(data, Data)
             ):
                 kwargs.update(copy=True)
             super().__init__(data, *args, **kwargs)
     
     @property
     def _constructor(self):
-        return CSVData
+        return Data
     
     def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self)
     
     def get_soft_labels(self, thresh=0.01) -> pd.DataFrame:
         max_delta = self.max() - self.min()
-        delta = self.groupby(level=in_cols).agg(lambda f: f.max() - f.min())
+        delta = self.groupby(level=get_level_from_index(self)).agg(lambda f: f.max() - f.min())
         slabels = (
             (delta / max_delta >= thresh)
             .any(axis=1)
@@ -106,7 +140,7 @@ class CSVData(pd.DataFrame):
 
     def get_hard_labels(self) -> pd.DataFrame:
         hlabels = (
-            self.groupby(level=in_cols)
+            self.groupby(level=get_level_from_index(self))
             .agg(lambda f: (f > 0).any() & (f <= 0).any())
             .any(axis=1)
             .to_frame("label")
@@ -116,10 +150,10 @@ class CSVData(pd.DataFrame):
 
         return hlabels
     
-    def hstack_repeats(self, inplace: bool = False) -> pd.DataFrame:
+    def hstack_repeats(self, inplace: bool = False) -> Data:
         df_ = self if inplace else self.copy()
         cols = df_.columns
-        df_["i"] = df_.groupby(level=in_cols).cumcount()
+        df_["i"] = df_.groupby(level=get_level_from_index(self)).cumcount()
         df_ = df_.pivot(columns=["i"], values=cols)
 
         return df_.to_df()
@@ -130,7 +164,7 @@ class CSVData(pd.DataFrame):
         *,
         return_sorted: bool = False,
         random_state: Union[int, np.random.RandomState, None] = None,
-    ) -> CSVData:
+    ) -> Data:
         sample = self.loc[
             self.index.unique().to_series().sample(count, random_state=random_state)
         ]
@@ -144,7 +178,7 @@ class CSVData(pd.DataFrame):
         *,
         randomize: bool = False,
         random_state: Union[int, np.random.RandomState, None] = None,
-    ) -> CSVData:
+    ) -> Data:
 
         if isinstance(agg_mode, str):
             multi_agg = False
@@ -152,10 +186,10 @@ class CSVData(pd.DataFrame):
         else:
             multi_agg = True
 
-        repeats = self.groupby(level=list(range(self.index.nlevels)))
+        repeats = self.groupby(level=get_level_from_index(self))
         if randomize:
             repeats = repeats.sample(frac=1, random_state=random_state).groupby(
-                level=list(range(self.index.nlevels))
+                level=get_level_from_index(self)
             )
 
         df_ = reduce(
@@ -199,13 +233,13 @@ class CSVDataLoader:
         agg_test_split: bool = False,
     ) -> pd.DataFrame:
 
-        df = CSVData(self._df)[columns]
+        df = Data(self._df)[columns]
         if min_rep:
-            df = df.groupby(level=in_cols).filter(
+            df = df.groupby(level=get_level_from_index(df)).filter(
                 lambda group: group.shape[0] >= min_rep
             )
         if max_rep:
-            df = df.groupby(level=in_cols).sample(max_rep, random_state=random_state)
+            df = df.groupby(level=get_level_from_index(df)).sample(max_rep, random_state=random_state)
         if count or randomize:
             if count is None:
                 count = self.__len__()
