@@ -32,7 +32,7 @@ def plot_rs(df: pd.DataFrame, output_file: str = "rs_iters.pdf", *, show: bool =
         plt.show()
 
 
-def plot_converge_vals(
+def plot_converge_box(
     df: pd.DataFrame, output_file: str = "rs_conv.pdf", *, show: bool = True
 ):
     sns.set()
@@ -49,7 +49,7 @@ def plot_converge_vals(
         plt.show()
 
 
-def smartFitness(
+def smart_fitness(
     X: pd.DataFrame,
     models: Union[Sequence[Any], None] = None,
     method: str = "first",
@@ -58,42 +58,39 @@ def smartFitness(
     n_ignore: Union[int, None] = None,
     n_continue: Union[int, None] = None,
 ):
-    visit_proba = get_visit_proba(X, models, method, max_rep, p_thresh, n_ignore, n_continue)
-    visit_proba.columns = range(1, max_rep)
-    w = visit_proba.copy()
-    w[0] = 1
-    w[max_rep] = 0
-    w = w.sort_index(axis=1).diff(periods=-1, axis=1).drop(columns=[max_rep])
+    t_proba = get_transition_proba(X, models, method, max_rep, p_thresh, n_ignore, n_continue)
+    h_proba = get_halt_proba(t_proba)
 
     t = []
-    for i in range(1, max_rep + 1):
+    for i in range(max_rep):
         value_vars = [(f, i) for f in fit_cols]
-        var_name = f"{i}_fit"
+        var_name = f"{i + 1}_var"
+        value_name = i + 1
         X_melt = X.melt(
-            value_vars=value_vars, var_name=var_name, value_name=i, ignore_index=False
+            value_vars=value_vars, var_name=var_name, value_name=value_name, ignore_index=False
         )
         t.append(X_melt)
     df = pd.concat(t, axis=1)
 
-    w_df = pd.concat(
-        [w / w.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0
+    w = pd.concat(
+        [h_proba / h_proba.mean(axis=1).to_numpy()[:, np.newaxis]] * len(fit_cols), axis=0
     )
-    df_vals = df[range(1, max_rep + 1)]
+    vals = df[range(1, max_rep + 1)]
 
-    df["min"] = (df_vals.cummin(axis=1) * w_df).mean(axis=1)
-    df["mean"] = (df_vals.cumsum(axis=1) / range(1, df_vals.shape[1] + 1) * w_df).mean(
+    df["min"] = (vals.cummin(axis=1) * w).mean(axis=1)
+    df["mean"] = (vals.cumsum(axis=1) / range(1, vals.shape[1] + 1) * w).mean(
         axis=1
     )
 
-    df["f"] = df["1_fit"]
+    df["f"] = df["1_var"]
     df = pd.pivot(df, columns="f", values=["min", "mean"])
-    cnt = (visit_proba.sum(axis=1) + 1).sum()
+    cnt = (t_proba.sum(axis=1) + 1).sum()
     cnt = int(np.round(cnt))
 
     return df, cnt
 
 
-def get_visit_proba(
+def get_transition_proba(
     X: pd.DataFrame,
     models: Union[Sequence[Any], None] = None,
     method: str = "first",
@@ -107,14 +104,14 @@ def get_visit_proba(
     
     if models is None:
         if method == "and":
-            visit_proba = np.logspace(1, max_rep - 1, num=max_rep - 1, base=p_thresh)
+            t_proba = np.logspace(1, max_rep - 1, num=max_rep - 1, base=p_thresh)
         elif method == "or":
-            visit_proba = np.logspace(
+            t_proba = np.logspace(
                 1, max_rep - 1, num=max_rep - 1, base=1 - p_thresh
             )
         elif method == "first":
-            visit_proba = np.ones(max_rep - 1) * p_thresh
-        visit_proba = pd.DataFrame(visit_proba[np.newaxis, :].repeat(len(X), axis=0))
+            t_proba = np.ones(max_rep - 1) * p_thresh
+        t_proba = pd.DataFrame(t_proba[np.newaxis, :].repeat(len(X), axis=0))
     else:
         predict = lambda m, x: m.predict(x) if hasattr(m, "predict") else m(x)
         pred = np.array(
@@ -125,18 +122,28 @@ def get_visit_proba(
         ).T
         pred_df = pd.DataFrame(pred)
         if method == "and":
-            visit_proba = pred_df.cumprod(axis=1)
+            t_proba = pred_df.cumprod(axis=1)
         elif method == "or":
-            visit_proba = (~pred_df).cumprod(axis=1)
+            t_proba = (~pred_df).cumprod(axis=1)
         elif method == "first":
-            visit_proba = pd.concat(
+            t_proba = pd.concat(
                 (pred_df[[0]],) * len(pred_df.columns), axis=1
             ).astype(float)
     if n_ignore:
-        visit_proba.loc[:, :n_ignore] = 1
+        t_proba.loc[:, :n_ignore] = 1
     if n_continue:
-        visit_proba.loc[:, n_continue:] = visit_proba[[n_continue - 1]]
-    return visit_proba
+        t_proba.loc[:, n_continue:] = t_proba[[n_continue - 1]]
+    return t_proba
+
+
+def get_halt_proba(transition_proba: pd.DataFrame) -> pd.DataFrame:
+    w = transition_proba.copy()
+    pad_pos = w.shape[1] + 1
+    w.columns = range(1, pad_pos)
+    w[0] = 1
+    w[pad_pos] = 0
+    w = w.sort_index(axis=1).diff(periods=-1, axis=1).drop(columns=[pad_pos])
+    return w
 
 
 def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
@@ -152,22 +159,22 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     search_split = lambda sf: (RS(sf[0], n_iter=ITER_COUNT), sf[1])
 
     df_random_first, cnt_random_first = search_split(
-        smartFitness(X, models=None, method="first", **kwargs)
+        smart_fitness(X, models=None, method="first", **kwargs)
     )
     df_model_first, cnt_model_first = search_split(
-        smartFitness(X, models=models, method="first", **kwargs)
+        smart_fitness(X, models=models, method="first", **kwargs)
     )
     df_random_or, cnt_random_or = search_split(
-        smartFitness(X, models=None, method="or", **kwargs)
+        smart_fitness(X, models=None, method="or", **kwargs)
     )
     df_model_or, cnt_model_or = search_split(
-        smartFitness(X, models=models, method="or", **kwargs)
+        smart_fitness(X, models=models, method="or", **kwargs)
     )
     df_random_and, cnt_random_and = search_split(
-        smartFitness(X, models=None, method="and", **kwargs)
+        smart_fitness(X, models=None, method="and", **kwargs)
     )
     df_model_and, cnt_model_and = search_split(
-        smartFitness(X, models=models, method="and", **kwargs)
+        smart_fitness(X, models=models, method="and", **kwargs)
     )
 
     agg_func = (
@@ -212,7 +219,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     res_dfs = hstack_with_labels(res_arr, labels)
     res_dfs = unstack_col_level(res_dfs, "method", level=0).reset_index()
 
-    plot_converge_vals(
+    plot_converge_box(
         res_dfs,
         output_file="rs_conv" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
