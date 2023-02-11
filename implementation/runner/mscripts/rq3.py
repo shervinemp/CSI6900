@@ -8,11 +8,11 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-from data_utils import CSVDataLoader, fit_cols, fit_labels, melt_multi
+from data_utils import CSVDataLoader, fit_cols, fit_labels
 from post_RS import RS, get_last_iter
 from rq3_models import MAX_REPEAT, fit_range, get_X_y, train
 from stat_utils import stat_test
-from utils import hstack_with_labels, static_vars, unstack_col_level
+from utils import hstack_with_labels, static_vars, unstack_col_level, melt_multi
 
 SEED = 0
 ITER_COUNT = 50
