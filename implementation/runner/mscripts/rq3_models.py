@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Tuple, Union, Sequence
 
 import numpy as np
 import pandas as pd
@@ -10,15 +10,32 @@ from sklearn.model_selection import StratifiedKFold, cross_validate
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
+from itertools import product
 
-from data_utils import CSVDataLoader, balance_data
-from rq3_data import fit_range, get_X_y
+from data_utils import CSVDataLoader, balance_data, Data, enum_cols, fit_cols
 
 SEED = 0
 MAX_REPEAT = 4
 
 # Create a pseudorandom number generator with the specified seed
 random_ = np.random.RandomState(seed=SEED)
+
+
+def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
+    if type(rang) is int:
+        rang = range(rang)
+    dcols = list(product(fit_cols, rang))
+    fit_X = X.drop(X.columns.intersection(dcols), axis=1)
+    return fit_X
+
+
+def get_X_y(df: Data):
+    X = df.hstack_repeats().reset_index()
+    one_hot = pd.get_dummies(X[enum_cols])
+    X = X.drop(columns=enum_cols, level=0).join(one_hot)
+    y = df
+
+    return X, y
 
 
 def train_model(model, X, y, *, cv=5, random_state=None):

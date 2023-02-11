@@ -26,6 +26,39 @@ def static_vars(**kwargs):
     return decorate
 
 
+def get_level_from_index(df: pd.DataFrame):
+    return list(range(df.index.nlevels))
+
+
+def melt_multi(
+    frame: pd.DataFrame,
+    id_vars_arr=None,
+    value_vars_arr=None,
+    var_names=None,
+    value_names=None,
+    col_level=None,
+    ignore_index: bool = True,
+) -> pd.DataFrame:
+    
+    id_vars_arr = id_vars_arr or cycle([None])
+    value_vars_arr = value_vars_arr or cycle([None])
+    var_names = var_names or cycle([None])
+    value_names = value_names or cycle([None])
+
+    frame_multi = pd.concat([frame.melt(
+        id_vars=id_vars,
+        value_vars=value_vars,
+        var_name=var_name,
+        value_name=value_name,
+        col_level=col_level,
+        ignore_index=ignore_index
+    ) for id_vars, value_vars, var_name, value_name in zip(
+        id_vars_arr, value_vars_arr, var_names, value_names
+    )], axis=1)
+
+    return frame_multi
+
+
 def unstack_col_level(df: pd.DataFrame, var_name: str, *, level: Union[int, str]):
     df_ = df.T.unstack(level=level).T.reset_index(level=-1)
     df_ = df_.rename(columns={df_.columns[0]: var_name})

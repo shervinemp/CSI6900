@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from functools import cached_property, reduce
 from glob import glob
-from itertools import cycle
 from typing import Iterable, Sequence, Union
 
 import numpy as np
 import pandas as pd
 from imblearn.over_sampling import SMOTE
+from utils import get_level_from_index
 
 SEED = 0
 EXP_REPEAT = 10
@@ -52,39 +52,6 @@ def get_fv_files(fv):
             glob(f'[[]{", ".join(map(str, fv_))}[]]*'),
         )
     )
-
-
-def get_level_from_index(df: pd.DataFrame):
-    return list(range(df.index.nlevels))
-
-
-def melt_multi(
-    frame: pd.DataFrame,
-    id_vars_arr=None,
-    value_vars_arr=None,
-    var_names=None,
-    value_names=None,
-    col_level=None,
-    ignore_index: bool = True,
-) -> pd.DataFrame:
-    
-    id_vars_arr = id_vars_arr or cycle([None])
-    value_vars_arr = value_vars_arr or cycle([None])
-    var_names = var_names or cycle([None])
-    value_names = value_names or cycle([None])
-
-    frame_multi = pd.concat([frame.melt(
-        id_vars=id_vars,
-        value_vars=value_vars,
-        var_name=var_name,
-        value_name=value_name,
-        col_level=col_level,
-        ignore_index=ignore_index
-    ) for id_vars, value_vars, var_name, value_name in zip(
-        id_vars_arr, value_vars_arr, var_names, value_names
-    )], axis=1)
-
-    return frame_multi
 
 
 def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: str = None, smote_instance=None):
