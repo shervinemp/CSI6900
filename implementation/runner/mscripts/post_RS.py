@@ -1,6 +1,6 @@
 import sys
 from pprint import pprint
-from typing import Sequence, Union
+from typing import Any, Dict, Sequence, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,6 +39,68 @@ def get_last_iter(
         by_ = [*([groupby] if isinstance(groupby, (int, str)) else groupby), *by_]
     return rs_df.groupby(by_, as_index=as_index).last()
 
+def plot_rs(
+    data: pd.DataFrame,
+    class_col: Union[str, int, None] = None,
+    *,
+    output_file: str = "rs_iters.pdf",
+    ylim_dict = None,
+    legend_kwargs: Union[Dict[str, Any], None] = None,
+    show: bool = False,
+):
+    sns.set(font_scale=1.0)
+
+    fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
+    kwparams = dict(x="rs_iter", legend=False, data=data)
+    if class_col:
+        kwparams['hue'] = class_col
+    for ax, col, label in zip(axes, fit_cols, fit_labels):
+        sns.lineplot(
+            y=col, ax=ax, **kwparams
+        )
+        ax.set_xlim((0, ITER_COUNT))
+        if type(ylim_dict) == dict:
+            ax.set_ylim(*ylim_dict[col])
+        ax.set_xticks(range(0, ITER_COUNT + 1, 10))
+        ax.set(xlabel="iteration", ylabel=label)
+        ax.margins(0)
+    if type(legend_kwargs) == dict:
+        fig.legend(**legend_kwargs)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    plt.savefig(output_file, bbox_inches="tight")
+    if show:
+        plt.show()
+    plt.close()
+
+
+def plot_converge_box(
+    data: pd.DataFrame,
+    class_col: Union[str, None] = None,
+    *,
+    output_file: str = "rs_conv.pdf",
+    ylim_dict = None,
+    show: bool = False
+):
+    sns.set(font_scale=1.0)
+    data = get_last_iter(data, groupby=(class_col or []))
+    fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
+    kwparams = dict(data=data, showmeans=True)
+    if class_col:
+        kwparams["x"] = class_col
+    for ax, col, label in zip(axes, fit_cols, fit_labels):
+        sns.boxplot(y=col, ax=ax, **kwparams)
+        if type(ylim_dict) == dict:
+            ax.set_ylim(*ylim_dict[col])
+        ax.set_ylabel(label)
+        ax.legend([], [], frameon=False)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+        ax.margins(0)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(output_file, bbox_inches="tight")
+    if show:
+        plt.show()
+    plt.close()
 
 # If this script is being run as the main script
 if __name__ == "__main__":
@@ -53,34 +115,7 @@ if __name__ == "__main__":
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
-    # Set the font scale for seaborn plots
-    sns.set(font_scale=1.0)
-
-    # Create a subplot with one plot for each fitness value
-    fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
-    for ax, col, label in zip(axes, fit_cols, fit_labels):
-        # Create a line plot of the data for the fitness value
-        sns.lineplot(
-            x="rs_iter", y=col, hue="agg_mode", legend=False, data=rs_res, ax=ax
-        )
-
-        ax.set_xlim((0, 50))
-        ax.set_ylim(*ylim_dict[col])
-
-        ax.set_xticks(range(0, 51, 10))
-
-        # Set the x and y labels for the plot
-        ax.set(xlabel="iteration", ylabel=label)
-
-        ax.margins(0)
-    # Set the legend labels
-    fig.legend(labels=["RSwRep", "RS"])
-    # Tightly adjust the layout of the plots
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    # Save the plot to a file
-    plt.savefig("rs_plot.pdf", bbox_inches="tight")
-    # Close the plot
-    plt.close()
+    plot_rs(rs_res, "agg_mode", ylim_dict=ylim_dict, legend_kwargs=dict(labels=["RSwRep", "RS"]))
 
     # Create a subplot with one plot for each fitness value
     fig, axes = plt.subplots(1, len(fit_cols), figsize=(5 * len(fit_cols), 5))
@@ -135,22 +170,4 @@ if __name__ == "__main__":
     print("min-mean")
     stat_test(l_iter_min, l_iter_mean)
 
-    # Create a subplot with one plot for each fitness value
-    fig, axes = plt.subplots(1, len(fit_cols), figsize=(4 * len(fit_cols), 4))
-
-    # Iterate over the fitness values
-    for ax, col, label in zip(axes, fit_cols, fit_labels):
-        # Create a histogram of the data
-        sns.boxplot(data=last_iter, x="agg_mode", y=col, orient="v", showmeans=True, ax=ax)
-
-        # Set the x and y labels for the plot
-        ax.set(xlabel="aggregation", ylabel=label)
-        ax.set_ylim(*ylim_dict[col])
-
-        ax.set_xticklabels(["RSwRep", "RS"])
-    # Tightly adjust the layout of the plots
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    # Save the plot to a file
-    plt.savefig("end_box.pdf", bbox_inches="tight")
-    # Close the plot
-    plt.close()
+    plot_converge_box(rs_res, "agg_mode", output_file="endbox.pdf", ylim_dict=ylim_dict)

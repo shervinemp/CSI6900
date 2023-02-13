@@ -5,48 +5,14 @@ from typing import Any, Sequence, Union
 
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from matplotlib import pyplot as plt
 
 from data_utils import CSVDataLoader, fit_cols, fit_labels
-from post_RS import RS, get_last_iter
+from post_RS import ITER_COUNT, RS, plot_converge_box, plot_rs
 from rq3_models import MAX_REPEAT, fit_range, get_X_y, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, static_vars, unstack_col_level, melt_multi
 
 SEED = 0
-ITER_COUNT = 50
-
-
-def plot_rs(df: pd.DataFrame, output_file: str = "rs_iters.pdf", *, show: bool = True):
-    sns.set()
-    fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
-    for ax, col, label in zip(axes, fit_cols, fit_labels):
-        sns.lineplot(data=df, x="rs_iter", y=col, hue="method", ax=ax)
-        ax.set_xlabel("Iteration")
-        ax.set_ylabel(label)
-        ax.legend(loc="lower left", fontsize=8)
-    fig.tight_layout()
-    plt.savefig(output_file, bbox_inches="tight")
-    if show:
-        plt.show()
-
-
-def plot_converge_box(
-    df: pd.DataFrame, output_file: str = "rs_conv.pdf", *, show: bool = True
-):
-    sns.set()
-    data = get_last_iter(df, groupby="method")
-    fig, axes = plt.subplots(1, len(fit_cols), figsize=(24, 5))
-    for ax, col, label in zip(axes, fit_cols, fit_labels):
-        sns.boxplot(data=data, x="method", y=col, showmeans=True, ax=ax)
-        ax.set_ylabel(label)
-        ax.legend([], [], frameon=False)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
-    fig.tight_layout()
-    plt.savefig(output_file, bbox_inches="tight")
-    if show:
-        plt.show()
 
 
 def smart_fitness(
@@ -215,14 +181,17 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
 
     plot_converge_box(
         res_dfs,
+        "method",
         output_file="rs_conv" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
     )
 
     plot_rs(
         res_dfs,
+        "method",
         output_file="rs_iters" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
+        legend_kwargs=dict(loc="lower left", fontsize=8)
     )
 
     if suffix:
