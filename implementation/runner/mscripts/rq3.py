@@ -1,4 +1,3 @@
-from itertools import cycle
 import sys
 from functools import partial
 from typing import Any, Sequence, Union
