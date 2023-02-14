@@ -5,8 +5,8 @@ from typing import Any, Sequence, Union
 import numpy as np
 import pandas as pd
 
-from data_utils import CSVDataLoader, fit_cols, fit_labels
-from post_RS import ITER_COUNT, RS, plot_converge_box, plot_rs
+from data import CSVDataLoader, fit_cols, fit_labels
+from post_rs import ITER_COUNT, random_search, plot_converge_box, plot_rs
 from rq3_models import MAX_REPEAT, fit_range, get_X_y, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, static_vars, unstack_col_level, melt_multi
@@ -115,7 +115,7 @@ def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
 
 
 def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
-    search_split = lambda sf: (RS(sf[0], n_iter=ITER_COUNT), sf[1])
+    search_split = lambda sf: (random_search(sf[0], n_iter=ITER_COUNT), sf[1])
 
     df_random_first, cnt_random_first = search_split(
         smart_fitness(X, models=None, method="first", **kwargs)
@@ -143,10 +143,10 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     )
 
     # Random search for 10 repetitions...
-    f10 = RS(agg_func(y), n_iter=ITER_COUNT)
+    f10 = random_search(agg_func(y), n_iter=ITER_COUNT)
 
     # Random search for 4 repetitions...
-    f4 = RS(
+    f4 = random_search(
         agg_func(y.groupby(level=y.index.names).sample(4, random_state=random_state)),
         n_iter=ITER_COUNT,
     )

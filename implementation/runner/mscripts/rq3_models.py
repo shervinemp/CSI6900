@@ -12,7 +12,7 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from itertools import product
 
-from data_utils import CSVDataLoader, balance_data, Data, enum_cols, fit_cols
+from data import CSVDataLoader, balance_data, Data, enum_cols, fit_cols
 
 SEED = 0
 MAX_REPEAT = 4

@@ -7,7 +7,7 @@ import pandas as pd
 import seaborn as sns
 from scipy.stats import wilcoxon
 
-from data_utils import Data, fit_cols, fit_labels, in_cols
+from data import Data, fit_cols, fit_labels, in_cols
 from utils import neg_histplot
 
 # Seed for the pseudorandom number generator
