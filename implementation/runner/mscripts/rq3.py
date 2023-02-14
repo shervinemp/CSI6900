@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 
 from data import CSVDataLoader, fit_cols, fit_labels
-from post_rs import ITER_COUNT, random_search, plot_converge_box, plot_rs
+from post_rs import ITER_COUNT
+from rs import random_search, plot_converge_box, plot_rs
 from rq3_models import MAX_REPEAT, fit_range, get_X_y, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, static_vars, unstack_col_level, melt_multi
