@@ -54,7 +54,12 @@ def get_fv_files(fv):
     )
 
 
-def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: Optional[str] = None, smote_instance=None):
+def balance_data(
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+    class_labels: Optional[str] = None,
+    smote_instance=None,
+):
     if smote_instance is None:
         smote_instance = SMOTE(random_state=SEED)
     if class_labels is None:
@@ -67,8 +72,8 @@ def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: Optional[str] =
     y.columns = range(y.shape[1])
     df = pd.concat([X, y], axis=1)
     df_resampled, _ = smote_instance.fit_resample(df, class_labels)
-    X_resampled = df_resampled.iloc[:, :X.shape[1]]
-    y_resampled = df_resampled.iloc[:, X.shape[1]:]
+    X_resampled = df_resampled.iloc[:, : X.shape[1]]
+    y_resampled = df_resampled.iloc[:, X.shape[1] :]
     X_resampled.columns = X_cols
     y_resampled.columns = y_cols
     return X_resampled, y_resampled
@@ -76,24 +81,26 @@ def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: Optional[str] =
 
 class Data(pd.DataFrame):
     def __init__(self, data: Union[pd.DataFrame, Data], *args, **kwargs):
-            if (
-                kwargs.get("copy") is None
-                and isinstance(data, pd.DataFrame)
-                and not isinstance(data, Data)
-            ):
-                kwargs.update(copy=True)
-            super().__init__(data, *args, **kwargs)
-    
+        if (
+            kwargs.get("copy") is None
+            and isinstance(data, pd.DataFrame)
+            and not isinstance(data, Data)
+        ):
+            kwargs.update(copy=True)
+        super().__init__(data, *args, **kwargs)
+
     @property
     def _constructor(self):
         return Data
-    
+
     def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self)
-    
+
     def get_soft_labels(self, thresh=0.01) -> pd.DataFrame:
         max_delta = self.max() - self.min()
-        delta = self.groupby(level=get_level_from_index(self)).agg(lambda f: f.max() - f.min())
+        delta = self.groupby(level=get_level_from_index(self)).agg(
+            lambda f: f.max() - f.min()
+        )
         slabels = (
             (delta / max_delta >= thresh)
             .any(axis=1)
@@ -103,7 +110,6 @@ class Data(pd.DataFrame):
         )
 
         return slabels
-
 
     def get_hard_labels(self) -> pd.DataFrame:
         hlabels = (
@@ -116,7 +122,7 @@ class Data(pd.DataFrame):
         )
 
         return hlabels
-    
+
     def hstack_repeats(self, inplace: bool = False) -> Data:
         df_ = self if inplace else self.copy()
         cols = df_.columns
@@ -206,7 +212,9 @@ class CSVDataLoader:
                 lambda group: group.shape[0] >= min_rep
             )
         if max_rep:
-            df = df.groupby(level=get_level_from_index(df)).sample(max_rep, random_state=random_state)
+            df = df.groupby(level=get_level_from_index(df)).sample(
+                max_rep, random_state=random_state
+            )
         if count or randomize:
             if count is None:
                 count = self.__len__()
@@ -244,7 +252,7 @@ class CSVDataLoader:
     def __len__(self) -> int:
         # Return the number of indices of the DataFrame
         return len(self.indices)
-    
+
     @staticmethod
     def load_data(csv_addr: str, *, print_len: bool = True, **kwargs):
         csv = CSVDataLoader(csv_addr)

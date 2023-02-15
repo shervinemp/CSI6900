@@ -24,13 +24,21 @@ def smart_fitness(
     n_ignore: Union[int, None] = None,
     n_continue: Union[int, None] = None,
 ):
-    t_proba = get_transition_proba(X, models, method, max_rep, p_thresh, n_ignore, n_continue)
+    t_proba = get_transition_proba(
+        X, models, method, max_rep, p_thresh, n_ignore, n_continue
+    )
     h_proba = get_halt_proba(t_proba)
 
     value_vars_arr = [[(f, i) for f in fit_cols] for i in range(max_rep)]
     var_names = [f"{i}_var" for i in range(1, max_rep + 1)]
     value_names = list(range(1, max_rep + 1))
-    df = melt_multi(X, value_vars_arr=value_vars_arr, var_names=var_names, value_names=value_names, ignore_index=False)
+    df = melt_multi(
+        X,
+        value_vars_arr=value_vars_arr,
+        var_names=var_names,
+        value_names=value_names,
+        ignore_index=False,
+    )
 
     mean_of_rows = h_proba.mean(axis=1).to_numpy()
     normalized_h_proba = h_proba / mean_of_rows[:, np.newaxis]
@@ -38,9 +46,7 @@ def smart_fitness(
     vals = df[range(1, max_rep + 1)]
 
     df["min"] = (vals.cummin(axis=1) * w).mean(axis=1)
-    df["mean"] = (vals.cumsum(axis=1) / range(1, vals.shape[1] + 1) * w).mean(
-        axis=1
-    )
+    df["mean"] = (vals.cumsum(axis=1) / range(1, vals.shape[1] + 1) * w).mean(axis=1)
 
     df["f"] = df["1_var"]
     df = pd.pivot(df, columns="f", values=["min", "mean"])
@@ -61,14 +67,12 @@ def get_transition_proba(
 ):
     if method not in ("or", "and", "first"):
         raise ValueError(f'Method "{method}" is not valid.')
-    
+
     if models is None:
         if method == "and":
             t_proba = np.logspace(1, max_rep - 1, num=max_rep - 1, base=p_thresh)
         elif method == "or":
-            t_proba = np.logspace(
-                1, max_rep - 1, num=max_rep - 1, base=1 - p_thresh
-            )
+            t_proba = np.logspace(1, max_rep - 1, num=max_rep - 1, base=1 - p_thresh)
         elif method == "first":
             t_proba = np.ones(max_rep - 1) * p_thresh
         t_proba = pd.DataFrame(t_proba[np.newaxis, :].repeat(len(X), axis=0))
@@ -86,9 +90,9 @@ def get_transition_proba(
         elif method == "or":
             t_proba = (~pred_df).cumprod(axis=1)
         elif method == "first":
-            t_proba = pd.concat(
-                (pred_df[[0]],) * len(pred_df.columns), axis=1
-            ).astype(float)
+            t_proba = pd.concat((pred_df[[0]],) * len(pred_df.columns), axis=1).astype(
+                float
+            )
     if n_ignore:
         t_proba.loc[:, :n_ignore] = 1
     if n_continue:
@@ -189,7 +193,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         "method",
         output_file="rs_iters" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
-        legend_kwargs=dict(loc="lower left", fontsize=8)
+        legend_kwargs=dict(loc="lower left", fontsize=8),
     )
 
     if suffix:
@@ -261,8 +265,6 @@ if __name__ == "__main__":
     hmodels = train_models(X, hlabels)
     evaluate(X, y, hmodels, suffix="hard", random_state=SEED)
 
-    delta_model = (
-        lambda X: (X.max(axis=1) - X.min(axis=1)) >= 0.1
-    )
+    delta_model = lambda X: (X.max(axis=1) - X.min(axis=1)) >= 0.1
     dmodels = (delta_model,) * (MAX_REPEAT - 1)
     evaluate(X, y, dmodels, suffix="delta", random_state=SEED, n_ignore=1)
