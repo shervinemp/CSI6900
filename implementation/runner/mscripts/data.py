@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import cached_property, reduce
 from glob import glob
-from typing import Iterable, Sequence, Union
+from typing import Iterable, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -54,7 +54,7 @@ def get_fv_files(fv):
     )
 
 
-def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: str = None, smote_instance=None):
+def balance_data(X: pd.DataFrame, y: pd.DataFrame, class_labels: Optional[str] = None, smote_instance=None):
     if smote_instance is None:
         smote_instance = SMOTE(random_state=SEED)
     if class_labels is None:
@@ -130,7 +130,7 @@ class Data(pd.DataFrame):
         count: int,
         *,
         return_sorted: bool = False,
-        random_state: Union[int, np.random.RandomState, None] = None,
+        random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> Data:
         sample = self.loc[
             self.index.unique().to_series().sample(count, random_state=random_state)
@@ -144,7 +144,7 @@ class Data(pd.DataFrame):
         agg_mode: Union[str, Iterable[str]],
         *,
         randomize: bool = False,
-        random_state: Union[int, np.random.RandomState, None] = None,
+        random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> Data:
 
         if isinstance(agg_mode, str):
@@ -189,14 +189,14 @@ class CSVDataLoader:
 
     def get(
         self,
-        count: Union[int, None] = COUNT,
-        min_rep: Union[int, None] = EXP_REPEAT,
-        max_rep: Union[int, None] = EXP_REPEAT,
+        count: int = COUNT,
+        min_rep: int = EXP_REPEAT,
+        max_rep: int = EXP_REPEAT,
         columns: Sequence[Union[str, int]] = fit_cols,
         randomize: bool = True,
-        random_state: Union[int, np.random.RandomState, None] = SEED,
-        agg_mode: Union[str, Iterable[str], None] = None,
-        split: Union[float, None] = None,
+        random_state: Union[int, np.random.RandomState] = SEED,
+        agg_mode: Optional[Union[str, Iterable[str]]] = None,
+        split: Optional[float] = None,
         agg_test_split: bool = False,
     ) -> pd.DataFrame:
 

@@ -7,7 +7,7 @@ import pandas as pd
 
 from data import CSVDataLoader, fit_cols, fit_labels
 from post_rs import ITER_COUNT
-from rs import random_search, plot_converge_box, plot_rs
+from rs import RandomSearch as RS
 from rq3_models import MAX_REPEAT, fit_range, get_X_y, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, static_vars, unstack_col_level, melt_multi
@@ -116,7 +116,7 @@ def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
 
 
 def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
-    search_split = lambda sf: (random_search(sf[0], n_iter=ITER_COUNT), sf[1])
+    search_split = lambda sf: (RS.from_dataframe(sf[0], n_iter=ITER_COUNT), sf[1])
 
     df_random_first, cnt_random_first = search_split(
         smart_fitness(X, models=None, method="first", **kwargs)
@@ -140,14 +140,14 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     agg_func = (
         lambda df: df.aggregate(agg_mode=("min", "mean"))
         .loc[df.index.unique()]
-        .reset_index()
+        .reset_index(drop=True)
     )
 
     # Random search for 10 repetitions...
-    f10 = random_search(agg_func(y), n_iter=ITER_COUNT)
+    f10 = RS.from_dataframe(agg_func(y), n_iter=ITER_COUNT)
 
     # Random search for 4 repetitions...
-    f4 = random_search(
+    f4 = RS.from_dataframe(
         agg_func(y.groupby(level=y.index.names).sample(4, random_state=random_state)),
         n_iter=ITER_COUNT,
     )
@@ -179,15 +179,13 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     res_dfs = hstack_with_labels(res_arr, labels)
     res_dfs = unstack_col_level(res_dfs, "method", level=0).reset_index()
 
-    plot_converge_box(
-        res_dfs,
+    res_dfs.plot_converge_box(
         "method",
         output_file="rs_conv" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
     )
 
-    plot_rs(
-        res_dfs,
+    res_dfs.plot_rs(
         "method",
         output_file="rs_iters" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,

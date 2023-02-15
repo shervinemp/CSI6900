@@ -19,8 +19,6 @@ COUNT = 1000
 # Maximum number of experiment repeats
 EXP_REPEAT = 10
 
-# TODO: sampling with replacement for different groups?
-
 # Create a pseudorandom number generator with the specified seed
 random_ = np.random.RandomState(seed=SEED)
 
@@ -32,7 +30,7 @@ if __name__ == "__main__":
 
     df = data.get(
         min_rep=EXP_REPEAT, max_rep=EXP_REPEAT, count=COUNT, random_state=SEED
-    )[fit_cols]
+    )
 
     scenarios = df.groupby(level=in_cols)
     mi = scenarios.min()
