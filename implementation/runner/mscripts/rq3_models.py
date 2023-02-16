@@ -116,12 +116,20 @@ def train_best(
     compare: callable = lambda a, b: a.__gt__(b),
     random_state: Union[np.random.RandomState, int, None] = None,
     **kwargs,
-) -> Tuple[Dict[str, Any], str]:
+):
     methods = ["dt", "svm", "mlp", "rf"]
     score_best = -math.inf
     model_best = None
     for m in methods:
-        model, scores = train(X, y, class_labels=class_labels, method=m, cv=cv, random_state=random_state, **kwargs)
+        model, scores = train(
+            X,
+            y,
+            class_labels=class_labels,
+            method=m,
+            cv=cv,
+            random_state=random_state,
+            **kwargs,
+        )
         score_mean = np.mean(scores[criteria])
         if compare(score_mean, score_best):
             score_best = score_mean
