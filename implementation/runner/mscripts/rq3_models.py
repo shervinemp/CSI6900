@@ -1,3 +1,4 @@
+import math
 import os
 import sys
 from typing import Any, Dict, Tuple, Union, Sequence
@@ -38,34 +39,42 @@ def get_X_y(df: Data):
     return X, y
 
 
-def train_model(model, X, y, *, cv=5, random_state=None):
+def train_cv(model, X, y, *, cv=5, random_state=None):
     cv = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
     scores = cross_validate(
         model, X, y, cv=cv, scoring=["precision", "recall", "f1"], return_estimator=True
     )
-    desc = str(model)
-    return scores, desc
+    return scores
 
 
-def trainDecisionTree(X, y, *, cv=5, random_state=None, **kwargs):
+def train_model(model, X, y, *, cv=None, random_state=None):
+    if cv is None:
+        model.fit(X, y)
+        scores = None
+    else:
+        scores = train_cv(model, X, y)
+    return model, scores
+
+
+def trainDT(X, y, *, cv=None, random_state=None, **kwargs):
     kwargs.setdefault("max_depth", 5)
     model = DecisionTreeClassifier(**kwargs)
     return train_model(model, X, y, cv=cv, random_state=random_state)
 
 
-def trainSVM(X, y, *, cv=5, random_state=None, **kwargs):
+def trainSVM(X, y, *, cv=None, random_state=None, **kwargs):
     model = SVC(**kwargs)
     return train_model(model, X, y, cv=cv, random_state=random_state)
 
 
-def trainMLP(X, y, *, cv=5, random_state=None, **kwargs):
+def trainMLP(X, y, *, cv=None, random_state=None, **kwargs):
     kwargs.setdefault("hidden_layer_sizes", (50, 100))
     kwargs.setdefault("learning_rate", "adaptive")
     model = MLPClassifier(**kwargs)
     return train_model(model, X, y, cv=cv, random_state=random_state)
 
 
-def trainRF(X, y, *, cv=5, random_state=None, **kwargs):
+def trainRF(X, y, *, cv=None, random_state=None, **kwargs):
     kwargs.setdefault("max_depth", 5)
     model = RandomForestClassifier(**kwargs)
     return train_model(model, X, y, cv=cv, random_state=random_state)
@@ -76,38 +85,58 @@ def train(
     y: pd.DataFrame,
     class_labels: Union[pd.DataFrame, None] = None,
     method: str = "dt",
-    cv: int = 5,
+    cv: int = None,
     random_state: Union[np.random.RandomState, int, None] = None,
     **kwargs,
-) -> Tuple[Dict[str, Any], str]:
+):
     if class_labels is None:
         class_labels = y
     X_b, y_b = balance_data(X, y, class_labels)
     y_b = y_b.iloc[:, 0]
     if method == "dt":
-        scores, desc = trainDecisionTree(
-            X_b, y_b, cv=cv, random_state=random_state, **kwargs
-        )
+        model, scores = trainDT(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
     elif method == "svm":
-        scores, desc = trainSVM(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
+        model, scores = trainSVM(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
     elif method == "mlp":
-        scores, desc = trainMLP(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
+        model, scores = trainMLP(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
     elif method == "rf":
-        scores, desc = trainRF(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
+        model, scores = trainRF(X_b, y_b, cv=cv, random_state=random_state, **kwargs)
     else:
         raise ValueError(f'Method "{method}" not supported.')
 
-    return scores, desc
+    return model, scores
 
 
-def test(scores, desc, X, y, output_file="rq3.txt"):
+def train_best(
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+    class_labels: Union[pd.DataFrame, None] = None,
+    cv: int = 5,
+    criteria: str = "test_f1",
+    compare: callable = lambda a, b: a.__gt__(b),
+    random_state: Union[np.random.RandomState, int, None] = None,
+    **kwargs,
+) -> Tuple[Dict[str, Any], str]:
+    methods = ["dt", "svm", "mlp", "rf"]
+    score_best = -math.inf
+    model_best = None
+    for m in methods:
+        model, scores = train(X, y, class_labels=class_labels, method=m, cv=cv, random_state=random_state, **kwargs)
+        score_mean = np.mean(scores[criteria])
+        if compare(score_mean, score_best):
+            score_best = score_mean
+            model_best = model
+    return model_best, score_best
+
+
+def test(scores, X, y, output_file="rq3.txt"):
     models = scores["estimator"]
     preds = [model.predict(X) for model in models]
     precisions = [precision_score(y, pred) for pred in preds]
     recalls = [recall_score(y, pred) for pred in preds]
     f1s = [f1_score(y, pred) for pred in preds]
     with open(output_file, "at") as f:
-        f.write(f"Approach: {desc}\n")
+        f.write(f"Approach: {str(models[0])}\n")
         f.write(f"Input: {list(X.columns)}\n")
         f.write(f"Output: {list(y.columns)}\n")
         f.write("Train:\n")
@@ -151,5 +180,5 @@ if __name__ == "__main__":
         for i in range(MAX_REPEAT):
             X_train_ = fit_range(X_train, i + 1)
             X_test_ = fit_range(X_test, i + 1)
-            m, d = train(X_train_, sl_train, method=method, **kwparams)
-            test(m, d, X_test_, sl_test, output_file="rq3.txt")
+            m, s = train(X_train_, sl_train, method=method, **kwparams)
+            test(m, X_test_, sl_test, output_file="rq3.txt")
