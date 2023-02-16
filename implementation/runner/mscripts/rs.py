@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+FONT_SCALE = 2.2
+
 
 class RandomSearch(pd.DataFrame):
     iter_col = "_rs_iter"
@@ -56,10 +58,10 @@ class RandomSearch(pd.DataFrame):
             legend_kwargs.setdefault("title", class_col)
             legend_kwargs.setdefault("labels", class_col_labels)
         cols = self.columns.difference([RandomSearch.group_col, RandomSearch.iter_col] + [] if class_col is None else [class_col])
-        max_iter = self.groupby(RandomSearch.group_col).size().max()
+        mi_iter, ma_iter = (it := self.reset_index()[RandomSearch.iter_col]).max(), it.min()
         data = self.reset_index()
 
-        sns.set(font_scale=1.0)
+        sns.set(font_scale=FONT_SCALE)
         fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
         kwparams = dict(x=RandomSearch.iter_col, legend=False, data=data)
         if class_col:
@@ -68,10 +70,10 @@ class RandomSearch(pd.DataFrame):
             sns.lineplot(
                 y=col, ax=ax, **kwparams
             )
-            ax.set_xlim((0, max_iter))
+            ax.set_xlim((mi_iter, ma_iter))
             if type(ylim_dict) == dict:
                 ax.set_ylim(*ylim_dict[col])
-            ax.set_xticks(range(0, max_iter + 1, 10))
+            ax.set_xticks(range(mi_iter, ma_iter + 1, 10))
             ax.set(xlabel="iteration", ylabel=label)
             ax.margins(0)
         fig.legend(**legend_kwargs)
@@ -101,24 +103,24 @@ class RandomSearch(pd.DataFrame):
             legend_kwargs.setdefault("title", class_col)
             legend_kwargs.setdefault("labels", class_col_labels)
         cols = self.columns.difference([RandomSearch.group_col, RandomSearch.iter_col] + [] if class_col is None else [class_col])
-        max_iter = self.groupby(RandomSearch.group_col).size().max()
-        hist_bins = np.linspace(0, max_iter, count_hist + 1)
+        mi_iter, ma_iter = (it := self.reset_index()[RandomSearch.iter_col]).max(), it.min()
+        hist_bins = np.linspace(mi_iter, ma_iter, count_hist + 1)
         data = self.reset_index()
         data["box"] = data.reset_index()[RandomSearch.iter_col].apply(
             lambda x: next(i for i, b in enumerate(hist_bins) if x < b) - 1
         )
 
-        sns.set(font_scale=1.0)
+        sns.set(font_scale=FONT_SCALE)
         fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
         kwparams = dict(x=RandomSearch.iter_col, legend=False, data=data)
         if class_col:
             kwparams['hue'] = class_col
         for ax, col, label in zip(axes, cols, labels):
             sns.boxplot(data=data, x="box", y=col, showmeans=True, ax=ax)
-            ax.set_xlim((0, max_iter))
+            ax.set_xlim((mi_iter, ma_iter))
             if type(ylim_dict) == dict:
                 ax.set_ylim(*ylim_dict[col])
-            ax.set_xticks(range(0, max_iter + 1, 10))
+            ax.set_xticks(range(mi_iter, ma_iter + 1, 10))
             ax.set(xlabel="iteration", ylabel=label)
             ax.margins(0)
         fig.legend(**legend_kwargs)
@@ -141,7 +143,7 @@ class RandomSearch(pd.DataFrame):
     ):
         labels = labels or cycle([None])
         cols = self.columns.difference([RandomSearch.group_col, RandomSearch.iter_col] + [] if class_col is None else [class_col])
-        sns.set(font_scale=1.0)
+        sns.set(font_scale=FONT_SCALE)
         data = self.get_last_iter(groupby=(class_col or [])).reset_index()
         fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
         kwparams = dict(data=data, showmeans=True)
