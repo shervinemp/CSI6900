@@ -16,13 +16,19 @@ class RandomSearch(pd.DataFrame):
     group_col = "_rs_group"
 
     @staticmethod
-    def from_dataframe(df: pd.DataFrame, n_iter: int, append_index: bool = True) -> RandomSearch:
+    def from_dataframe(
+        df: pd.DataFrame, n_iter: int, append_index: bool = True
+    ) -> RandomSearch:
         g_index = pd.RangeIndex(len(df)) // n_iter
         df_ = df.groupby(g_index, as_index=False).cummin()
         df_[RandomSearch.iter_col] = df.groupby(g_index).cumcount()
         df_[RandomSearch.group_col] = g_index
         if append_index:
-            df_.set_index([RandomSearch.group_col, RandomSearch.iter_col], append=True, inplace=True)
+            df_.set_index(
+                [RandomSearch.group_col, RandomSearch.iter_col],
+                append=True,
+                inplace=True,
+            )
         return RandomSearch(df_)
 
     @property
@@ -40,7 +46,6 @@ class RandomSearch(pd.DataFrame):
             by_ = [*([groupby] if isinstance(groupby, (int, str)) else groupby), *by_]
         return self.groupby(by_, as_index=as_index).last()
 
-
     def plot(
         self,
         class_col: Optional[Union[str, int]] = None,
@@ -57,19 +62,22 @@ class RandomSearch(pd.DataFrame):
             class_col_labels = self[class_col].unique()
             legend_kwargs.setdefault("title", class_col)
             legend_kwargs.setdefault("labels", class_col_labels)
-        cols = self.columns.difference([RandomSearch.group_col, RandomSearch.iter_col] + [] if class_col is None else [class_col])
-        mi_iter, ma_iter = (it := self.reset_index()[RandomSearch.iter_col]).max(), it.min()
+        cols = self.columns.difference(
+            [RandomSearch.group_col, RandomSearch.iter_col]
+            + ([] if class_col is None else [class_col])
+        )
+        mi_iter, ma_iter = (
+            it := self.reset_index()[RandomSearch.iter_col]
+        ).max(), it.min()
         data = self.reset_index()
 
         sns.set(font_scale=FONT_SCALE)
         fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
         kwparams = dict(x=RandomSearch.iter_col, legend=False, data=data)
         if class_col:
-            kwparams['hue'] = class_col
+            kwparams["hue"] = class_col
         for ax, col, label in zip(axes, cols, labels):
-            sns.lineplot(
-                y=col, ax=ax, **kwparams
-            )
+            sns.lineplot(y=col, ax=ax, **kwparams)
             ax.set_xlim((mi_iter, ma_iter))
             if type(ylim_dict) == dict:
                 ax.set_ylim(*ylim_dict[col])
@@ -83,7 +91,6 @@ class RandomSearch(pd.DataFrame):
         if show:
             plt.show()
         plt.close()
-    
 
     def plot_box(
         self,
@@ -102,8 +109,13 @@ class RandomSearch(pd.DataFrame):
             class_col_labels = self[class_col].unique()
             legend_kwargs.setdefault("title", class_col)
             legend_kwargs.setdefault("labels", class_col_labels)
-        cols = self.columns.difference([RandomSearch.group_col, RandomSearch.iter_col] + [] if class_col is None else [class_col])
-        mi_iter, ma_iter = (it := self.reset_index()[RandomSearch.iter_col]).max(), it.min()
+        cols = self.columns.difference(
+            [RandomSearch.group_col, RandomSearch.iter_col]
+            + ([] if class_col is None else [class_col])
+        )
+        mi_iter, ma_iter = (
+            it := self.reset_index()[RandomSearch.iter_col]
+        ).max(), it.min()
         hist_bins = np.linspace(mi_iter, ma_iter, count_hist + 1)
         data = self.reset_index()
         data["box"] = data.reset_index()[RandomSearch.iter_col].apply(
@@ -114,7 +126,7 @@ class RandomSearch(pd.DataFrame):
         fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
         kwparams = dict(x=RandomSearch.iter_col, legend=False, data=data)
         if class_col:
-            kwparams['hue'] = class_col
+            kwparams["hue"] = class_col
         for ax, col, label in zip(axes, cols, labels):
             sns.boxplot(data=data, x="box", y=col, showmeans=True, ax=ax)
             ax.set_xlim((mi_iter, ma_iter))
@@ -131,7 +143,6 @@ class RandomSearch(pd.DataFrame):
             plt.show()
         plt.close()
 
-
     def plot_converge_box(
         self,
         class_col: Optional[str] = None,
@@ -139,10 +150,13 @@ class RandomSearch(pd.DataFrame):
         labels: Optional[Sequence[str]] = None,
         output_file: str = "rs_conv.pdf",
         ylim_dict: Optional[Dict[Union[str, int], Tuple[float, float]]] = None,
-        show: bool = False
+        show: bool = False,
     ):
         labels = labels or cycle([None])
-        cols = self.columns.difference([RandomSearch.group_col, RandomSearch.iter_col] + [] if class_col is None else [class_col])
+        cols = self.columns.difference(
+            [RandomSearch.group_col, RandomSearch.iter_col]
+            + ([] if class_col is None else [class_col])
+        )
         sns.set(font_scale=FONT_SCALE)
         data = self.get_last_iter(groupby=(class_col or [])).reset_index()
         fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
