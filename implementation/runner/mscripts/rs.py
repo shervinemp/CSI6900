@@ -84,7 +84,8 @@ class RandomSearch(pd.DataFrame):
             ax.set_xticks(range(mi_iter, ma_iter + 1, 10))
             ax.set(xlabel="iteration", ylabel=label)
             ax.margins(0)
-        fig.legend(**legend_kwargs)
+        if legend_kwargs:
+            fig.legend(**legend_kwargs)
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
         plt.savefig(output_file, bbox_inches="tight")
@@ -135,7 +136,8 @@ class RandomSearch(pd.DataFrame):
             ax.set_xticks(range(mi_iter, ma_iter + 1, 10))
             ax.set(xlabel="iteration", ylabel=label)
             ax.margins(0)
-        fig.legend(**legend_kwargs)
+        if legend_kwargs:
+            fig.legend(**legend_kwargs)
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
         plt.savefig(output_file, bbox_inches="tight")
