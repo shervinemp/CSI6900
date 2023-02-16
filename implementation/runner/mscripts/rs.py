@@ -39,7 +39,7 @@ class RandomSearch(pd.DataFrame):
         return self.groupby(by_, as_index=as_index).last()
 
 
-    def plot_rs(
+    def plot(
         self,
         class_col: Optional[Union[str, int]] = None,
         *,
@@ -83,7 +83,7 @@ class RandomSearch(pd.DataFrame):
         plt.close()
     
 
-    def plot_rs_box(
+    def plot_box(
         self,
         count_hist: int,
         class_col: Optional[Union[str, int]] = None,

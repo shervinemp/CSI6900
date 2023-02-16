@@ -189,7 +189,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         show=False,
     )
 
-    res_dfs.plot_rs(
+    res_dfs.plot(
         "method",
         output_file="rs_iters" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,

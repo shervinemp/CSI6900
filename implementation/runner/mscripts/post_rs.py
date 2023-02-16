@@ -1,12 +1,10 @@
 import sys
 from pprint import pprint
 
-import matplotlib.pyplot as plt
 import numpy as np
 from rs import RandomSearch as RS
-import seaborn as sns
 
-from data import CSVDataLoader, fit_cols, fit_labels
+from data import CSVDataLoader, fit_cols
 from stat_utils import stat_test
 from utils import unstack_col_level
 
@@ -29,7 +27,7 @@ if __name__ == "__main__":
 
     ylim_dict = dict(zip(fit_cols, [(-1, 1), (-1, 1), (-1, 1), (-1, 1)]))
 
-    rs_res.plot_rs("agg_mode", ylim_dict=ylim_dict, legend_kwargs=dict(labels=["RSwRep", "RS"]))
+    rs_res.plot("agg_mode", ylim_dict=ylim_dict, legend_kwargs=dict(labels=["RSwRep", "RS"]))
 
     # Calculate the difference between non-minimum and minimum fitness values
     diff = (
