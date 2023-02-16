@@ -37,7 +37,7 @@ if __name__ == "__main__":
         )
     )
 
-    diff.plot_rs_box(HIST_SIZE)
+    diff.plot_box(HIST_SIZE)
 
     last_iter = rs_res.get_last_iter(groupby="agg_mode")
     l_iter_min = last_iter[last_iter.agg_mode == "min"][fit_cols]
