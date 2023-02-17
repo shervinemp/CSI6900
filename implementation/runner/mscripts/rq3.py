@@ -298,4 +298,5 @@ if __name__ == "__main__":
 
     delta_model = lambda X: (X.max(axis=1) - X.min(axis=1)) >= 0.1
     dmodels = (delta_model,) * (MAX_REPEAT - 1)
-    evaluate(X, y, dmodels, suffix="delta", random_state=SEED, n_ignore=1)
+    for n_ignore in range(1, 10):
+        evaluate(X, y, dmodels, suffix=f"delta_{n_ignore + 1}", random_state=SEED, n_ignore=n_ignore)
