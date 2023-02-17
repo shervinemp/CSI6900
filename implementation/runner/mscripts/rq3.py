@@ -201,7 +201,6 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         print(f"{suffix}:")
 
     d = []
-
     rs_stats_f4 = partial(rs_stats, baseline=f4["min"], base_label="f4")
 
     s = rs_stats_f4(f10["min"], label="f10")
