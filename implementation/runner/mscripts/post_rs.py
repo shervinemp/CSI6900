@@ -4,7 +4,7 @@ from pprint import pprint
 import numpy as np
 from rs import RandomSearch as RS
 
-from data import CSVDataLoader, fit_cols
+from data import CSVDataLoader, fit_cols, col_label_dict
 from stat_utils import stat_test
 from utils import unstack_col_level
 
@@ -49,6 +49,6 @@ if __name__ == "__main__":
     pprint(l_iter_mean.mean())
 
     print("min-mean")
-    stat_test(l_iter_min, l_iter_mean, log=True)
+    stat_test(l_iter_min, l_iter_mean, log=True, col_label_dict=col_label_dict)
 
     rs_res.plot_converge_box("agg_mode", output_file="endbox.pdf", ylim_dict=ylim_dict)

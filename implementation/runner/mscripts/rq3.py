@@ -6,7 +6,7 @@ from typing import Any, Sequence, Union
 import numpy as np
 import pandas as pd
 
-from data import CSVDataLoader, fit_cols, fit_labels_short
+from data import CSVDataLoader, fit_cols, col_label_dict
 from post_rs import ITER_COUNT
 from rs import RandomSearch as RS
 from rq3_models import MAX_REPEAT, fit_range, get_X_y, train
@@ -245,7 +245,6 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         pprint(stats_df)
 
 
-@static_vars(cl_dict=dict(zip(fit_cols, fit_labels_short)))
 def rs_stats(
     results: pd.DataFrame,
     baseline: pd.DataFrame,
@@ -257,7 +256,7 @@ def rs_stats(
 ):
     if log:
         print(f"{base_label} / {label}")
-    stats = stat_test(results, baseline, col_label_dict=rs_stats.cl_dict, log=log)
+    stats = stat_test(results, baseline, col_label_dict=col_label_dict, log=log)
     if log:
         if count and base_count:
             print(f"#iterations - {label} / {base_label}: {count} / {base_count}")

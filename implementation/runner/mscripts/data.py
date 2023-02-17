@@ -48,6 +48,8 @@ fit_labels_short = [
     "dt",
 ]
 
+col_label_dict = dict(zip(fit_cols, fit_labels_short))
+
 
 def get_fv_files(fv):
     fv_ = [x for x in fv]
