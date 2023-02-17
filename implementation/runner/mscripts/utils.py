@@ -40,22 +40,28 @@ def melt_multi(
     col_level=None,
     ignore_index: bool = True,
 ) -> pd.DataFrame:
-    
+
     id_vars_arr = id_vars_arr or cycle([None])
     value_vars_arr = value_vars_arr or cycle([None])
     var_names = var_names or cycle([None])
     value_names = value_names or cycle([None])
 
-    frame_multi = pd.concat([frame.melt(
-        id_vars=id_vars,
-        value_vars=value_vars,
-        var_name=var_name,
-        value_name=value_name,
-        col_level=col_level,
-        ignore_index=ignore_index
-    ) for id_vars, value_vars, var_name, value_name in zip(
-        id_vars_arr, value_vars_arr, var_names, value_names
-    )], axis=1)
+    frame_multi = pd.concat(
+        [
+            frame.melt(
+                id_vars=id_vars,
+                value_vars=value_vars,
+                var_name=var_name,
+                value_name=value_name,
+                col_level=col_level,
+                ignore_index=ignore_index,
+            )
+            for id_vars, value_vars, var_name, value_name in zip(
+                id_vars_arr, value_vars_arr, var_names, value_names
+            )
+        ],
+        axis=1,
+    )
 
     return frame_multi
 

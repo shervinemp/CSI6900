@@ -199,14 +199,14 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
 
     if suffix:
         print(f"{suffix}:")
-    
+
     d = []
 
     rs_stats_f4 = partial(rs_stats, baseline=f4["min"], base_label="f4")
-    
+
     s = rs_stats_f4(f10["min"], label="f10")
     d.append(s)
-    
+
     for r, l in zip(res_arr[:-3], labels[:-3]):
         s = rs_stats_f4(r, label=l)
         d.append(s)

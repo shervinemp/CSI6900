@@ -11,10 +11,14 @@ from utils import static_vars, unstack_col_level
 from vargha_delaney import VD_A
 
 
-@static_vars(tests={
-    "wilcoxon": lambda a, b: dict(statistic=(d := wilcoxon(a, b)).statistic, pvalue=d.pvalue),
-    "VD": lambda a, b: dict(estimate=(d := VD_A(a, b))[0], magnitude=d[1]),
-})
+@static_vars(
+    tests={
+        "wilcoxon": lambda a, b: dict(
+            statistic=(d := wilcoxon(a, b)).statistic, pvalue=d.pvalue
+        ),
+        "VD": lambda a, b: dict(estimate=(d := VD_A(a, b))[0], magnitude=d[1]),
+    }
+)
 def stat_test(
     a: pd.DataFrame,
     b: pd.DataFrame,
@@ -32,15 +36,17 @@ def stat_test(
             try:
                 d = s(a_, b_)
                 for k, v in d.items():
-                   results[(label, slabel, k)] = [v]
+                    results[(label, slabel, k)] = [v]
             except ValueError as e:
-                pprint(f"The following exception happened in \"{slabel}\" for \"{label}\":\n{str(e)}")
+                pprint(
+                    f'The following exception happened in "{slabel}" for "{label}":\n{str(e)}'
+                )
     results = pd.DataFrame(results)
     results = unstack_col_level(results, "var", level=0)
     if log:
         with pd.option_context("display.float_format", str):
             pprint(results)
-    
+
     return results
 
 
@@ -51,7 +57,7 @@ def delta_thresh_proba_splines(
     lower: float = 0.0,
     upper: float = 1.0,
     num_samples: int = 10000,
-    return_func: bool = False
+    return_func: bool = False,
 ):
     dist = np.random.triangular(lower, (lower + upper) / 2, upper, (num_samples, n))
     dist_df = pd.DataFrame(dist)
