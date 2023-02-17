@@ -286,14 +286,15 @@ if __name__ == "__main__":
     df = CSVDataLoader(sys.argv[1]).get()
 
     X, y = get_X_y(df)
+    X_oh, _ = get_X_y(df, one_hot=True)
     slabels = df.get_soft_labels()
     hlabels = df.get_hard_labels()
 
-    smodels = train_models(X, slabels)
-    evaluate(X, y, smodels, suffix="soft", random_state=SEED)
+    smodels = train_models(X_oh, slabels)
+    evaluate(X_oh, y, smodels, suffix="soft", random_state=SEED)
 
-    hmodels = train_models(X, hlabels)
-    evaluate(X, y, hmodels, suffix="hard", random_state=SEED)
+    hmodels = train_models(X_oh, hlabels)
+    evaluate(X_oh, y, hmodels, suffix="hard", random_state=SEED)
 
     delta_model = lambda X: (X.max(axis=1) - X.min(axis=1)) >= 0.1
     dmodels = (delta_model,) * (MAX_REPEAT - 1)

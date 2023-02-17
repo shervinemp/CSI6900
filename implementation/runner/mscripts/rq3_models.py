@@ -30,10 +30,11 @@ def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
     return fit_X
 
 
-def get_X_y(df: Data):
+def get_X_y(df: Data, one_hot: bool = False):
     X = df.hstack_repeats().reset_index()
-    one_hot = pd.get_dummies(X[enum_cols])
-    X = X.drop(columns=enum_cols, level=0).join(one_hot)
+    if one_hot:
+        oh = pd.get_dummies(X[enum_cols])
+        X = X.drop(columns=enum_cols, level=0).join(oh)
     y = df
 
     return X, y
