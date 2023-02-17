@@ -36,10 +36,16 @@ enum_cols = [in_cols[i] for i in [0, 1, 10, 15]]
 
 fit_cols = [f"f{i}" for i in [1, 2, 4, 5]]
 fit_labels = [
-    "Distance from center lane (dfc)",
-    "Distance from non-ego vehicles (dfv)",
-    "Distance from static objects (dfo)",
-    "Distance travelled (dt)",
+    "Distance from center lane",
+    "Distance from non-ego vehicles",
+    "Distance from static objects",
+    "Distance travelled",
+]
+fit_labels_short = [
+    "dfc",
+    "dfv",
+    "dfo",
+    "dt",
 ]
 
 

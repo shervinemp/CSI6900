@@ -1,3 +1,4 @@
+from pprint import pprint
 import sys
 from functools import partial
 from typing import Any, Sequence, Union
@@ -5,7 +6,7 @@ from typing import Any, Sequence, Union
 import numpy as np
 import pandas as pd
 
-from data import CSVDataLoader, fit_cols, fit_labels
+from data import CSVDataLoader, fit_cols, fit_labels_short
 from post_rs import ITER_COUNT
 from rs import RandomSearch as RS
 from rq3_models import MAX_REPEAT, fit_range, get_X_y, train
@@ -113,7 +114,7 @@ def get_halt_proba(transition_proba: pd.DataFrame) -> pd.DataFrame:
 def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
     models = []
     for X_ in (fit_range(X, i) for i in range(1, MAX_REPEAT)):
-        scores, desc = train(X_, y, class_labels, cv=cv, **kwargs)
+        model, scores = train(X_, y, class_labels, cv=cv, **kwargs)
         f1s = scores["test_f1"]
         models.append(scores["estimator"][np.argmax(f1s)])
     return models
@@ -198,13 +199,19 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
 
     if suffix:
         print(f"{suffix}:")
+    
+    d = []
 
     rs_stats_f4 = partial(rs_stats, baseline=f4["min"], base_label="f4")
-    rs_stats_f4(f10["min"], label="f10")
+    
+    s = rs_stats_f4(f10["min"], label="f10")
+    d.append(s)
+    
     for r, l in zip(res_arr[:-3], labels[:-3]):
-        rs_stats_f4(r, label=l)
+        s = rs_stats_f4(r, label=l)
+        d.append(s)
 
-    rs_stats(
+    s = rs_stats(
         df_random_first["min"],
         df_model_first["min"],
         labels[0],
@@ -212,8 +219,9 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         cnt_random_first,
         cnt_model_first,
     )
+    d.append(s)
 
-    rs_stats(
+    s = rs_stats(
         df_random_or["min"],
         df_model_or["min"],
         labels[2],
@@ -221,8 +229,9 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         cnt_random_or,
         cnt_model_or,
     )
+    d.append(s)
 
-    rs_stats(
+    s = rs_stats(
         df_random_and["min"],
         df_model_and["min"],
         labels[4],
@@ -230,9 +239,14 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         cnt_random_and,
         cnt_model_and,
     )
+    d.append(s)
+
+    stats_df = pd.concat(d, axis=0).reset_index()
+    with pd.option_context("display.float_format", str):
+        pprint(stats_df)
 
 
-@static_vars(cl_dict=dict(zip(fit_cols, fit_labels)))
+@static_vars(cl_dict=dict(zip(fit_cols, fit_labels_short)))
 def rs_stats(
     results: pd.DataFrame,
     baseline: pd.DataFrame,
@@ -240,15 +254,27 @@ def rs_stats(
     base_label: str = "baseline",
     count: Union[int, None] = None,
     base_count: Union[int, None] = None,
+    log: bool = False,
 ):
-    print(f"{base_label} / {label}")
-    stat_test(results, baseline, col_label_dict=rs_stats.cl_dict)
-    if count and base_count:
-        print(f"#iterations - {label} / {base_label}: {count} / {base_count}")
-    elif count:
-        print(f"#iterations - {label}: {count}")
-    elif base_count:
-        print(f"#iterations - {base_label}: {base_count}")
+    if log:
+        print(f"{base_label} / {label}")
+    stats = stat_test(results, baseline, col_label_dict=rs_stats.cl_dict, log=log)
+    if log:
+        if count and base_count:
+            print(f"#iterations - {label} / {base_label}: {count} / {base_count}")
+        elif count:
+            print(f"#iterations - {label}: {count}")
+        elif base_count:
+            print(f"#iterations - {base_label}: {base_count}")
+    if label:
+        stats["model"] = label
+    if count:
+        stats["runs"] = count
+    if base_label:
+        stats["base_model"] = base_label
+    if base_count:
+        stats["base_runs"] = base_count
+    return stats
 
 
 if __name__ == "__main__":

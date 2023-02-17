@@ -68,7 +68,7 @@ class RandomSearch(pd.DataFrame):
         )
         mi_iter, ma_iter = (
             it := self.reset_index()[RandomSearch.iter_col]
-        ).max(), it.min()
+        ).min(), it.max()
         data = self.reset_index()
 
         sns.set(font_scale=FONT_SCALE)
@@ -116,11 +116,11 @@ class RandomSearch(pd.DataFrame):
         )
         mi_iter, ma_iter = (
             it := self.reset_index()[RandomSearch.iter_col]
-        ).max(), it.min()
-        hist_bins = np.linspace(mi_iter, ma_iter, count_hist + 1)
+        ).min(), it.max()
+        hist_bins = np.linspace(mi_iter, ma_iter + 1, count_hist + 1)[1:]
         data = self.reset_index()
         data["box"] = data.reset_index()[RandomSearch.iter_col].apply(
-            lambda x: next(i for i, b in enumerate(hist_bins) if x < b) - 1
+            lambda x: next(i for i, b in enumerate(hist_bins) if x < b)
         )
 
         sns.set(font_scale=FONT_SCALE)

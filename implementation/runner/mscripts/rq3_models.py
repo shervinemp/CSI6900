@@ -188,5 +188,5 @@ if __name__ == "__main__":
         for i in range(MAX_REPEAT):
             X_train_ = fit_range(X_train, i + 1)
             X_test_ = fit_range(X_test, i + 1)
-            m, s = train(X_train_, sl_train, method=method, **kwparams)
-            test(m, X_test_, sl_test, output_file="rq3.txt")
+            m, s = train(X_train_, sl_train, method=method, cv=5, **kwparams)
+            test(s, X_test_, sl_test, output_file="rq3.txt")
