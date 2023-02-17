@@ -49,6 +49,6 @@ if __name__ == "__main__":
     pprint(l_iter_mean.mean())
 
     print("min-mean")
-    stat_test(l_iter_min, l_iter_mean, log=True, col_label_dict=col_label_dict)
+    stat_test(l_iter_min, l_iter_mean, col_label_dict=col_label_dict, log=True)
 
     rs_res.plot_converge_box("agg_mode", output_file="endbox.pdf", ylim_dict=ylim_dict)
