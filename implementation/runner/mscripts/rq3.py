@@ -164,9 +164,12 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         "RS-Model-OR",
         "RS-Random-AND",
         "RS-Model-AND",
-        "RSw4REP",
-        "RSw10REP",
-        "RSw10REP-MEAN",
+    ]
+
+    base_labels = [
+        "RSn4",
+        "RSn10",
+        "RSn10-MEAN",
     ]
 
     res_arr = [
@@ -176,12 +179,15 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         df_model_or["min"],
         df_random_and["min"],
         df_model_and["min"],
+    ]
+
+    base_arr = [
         f4["min"],
         f10["min"],
         f10["mean"],
     ]
 
-    res_dfs = hstack_with_labels(res_arr, labels)
+    res_dfs = hstack_with_labels(res_arr + base_arr, labels + base_labels)
     res_dfs = unstack_col_level(res_dfs, "method", level=0).reset_index()
 
     res_dfs.plot_converge_box(
@@ -206,7 +212,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     s = rs_stats_f4(f10["min"], label="f10")
     d.append(s)
 
-    for r, l in zip(res_arr[:-3], labels[:-3]):
+    for r, l in zip(res_arr, labels):
         s = rs_stats_f4(r, label=l)
         d.append(s)
 
