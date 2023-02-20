@@ -86,7 +86,7 @@ def make_one_hot(
 
     if ignore_index:
         oh = oh.reset_index()
-    
+
     return oh
 
 
@@ -159,12 +159,12 @@ class Data(pd.DataFrame):
         )
 
         return hlabels
-    
+
     def split(
         self,
         frac: float,
         randomize: bool = True,
-        random_state: Optional[Union[int, np.random.RandomState]] = None
+        random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> Tuple[Data, Data]:
         index = self.index.unique()
         p1_size = int(np.round(len(index) * frac))
