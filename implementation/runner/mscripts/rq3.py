@@ -1,3 +1,4 @@
+from itertools import pairwise
 from pprint import pprint
 import sys
 from functools import partial
@@ -69,6 +70,7 @@ def get_transition_proba(
     method: str = "first",
     max_rep: int = MAX_REPEAT,
     p_thresh: Union[float, None] = 0.5,
+    n_skip: Union[int, None] = None,
     n_ignore: Union[int, None] = None,
     n_continue: Union[int, None] = None,
     normalize: bool = False,
@@ -101,6 +103,9 @@ def get_transition_proba(
             t_proba = pd.concat((pred_df[[0]],) * len(pred_df.columns), axis=1).astype(
                 float
             )
+    if n_skip:
+        t_proba.loc[:, n_skip:] = t_proba.loc[:, :t_proba.shape[1] - n_skip]
+        t_proba.loc[:, :n_skip] = 1
     if n_ignore:
         t_proba.loc[:, :n_ignore] = 1
     if n_continue:
@@ -153,12 +158,14 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     df_model_first, cnt_model_first = search_split(
         smart_fitness(X_, models=models, method="first", **kwargs)
     )
+    
     df_random_or, cnt_random_or = search_split(
         smart_fitness(X_, models=None, method="or", **kwargs)
     )
     df_model_or, cnt_model_or = search_split(
         smart_fitness(X_, models=models, method="or", **kwargs)
     )
+
     df_random_and, cnt_random_and = search_split(
         smart_fitness(X_, models=None, method="and", **kwargs)
     )
@@ -248,36 +255,10 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     for r, c, l in zip(res_arr, count_arr, labels):
         s = rs_stats_f4(r, label=l, count=c)
         d.append(s)
-
-    s = rs_stats(
-        df_random_first["min"],
-        df_model_first["min"],
-        labels[0],
-        labels[1],
-        cnt_random_first,
-        cnt_model_first,
-    )
-    d.append(s)
-
-    s = rs_stats(
-        df_random_or["min"],
-        df_model_or["min"],
-        labels[2],
-        labels[3],
-        cnt_random_or,
-        cnt_model_or,
-    )
-    d.append(s)
-
-    s = rs_stats(
-        df_random_and["min"],
-        df_model_and["min"],
-        labels[4],
-        labels[5],
-        cnt_random_and,
-        cnt_model_and,
-    )
-    d.append(s)
+    
+    for (df1, l1, cnt1), (df2, l2, cnt2) in pairwise(zip(res_arr, labels, count_arr)):
+        s = rs_stats(df1, df2, l1, l2, cnt1, cnt2)
+        d.append(s)
 
     stats_df = pd.concat(d, axis=0).reset_index(drop=True)
     with pd.option_context("display.float_format", str):
