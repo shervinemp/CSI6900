@@ -62,10 +62,39 @@ def get_fv_files(fv):
     )
 
 
+def make_one_hot(
+    df: pd.DataFrame,
+    columns=enum_cols,
+    ignore_index: bool = False,
+) -> pd.DataFrame:
+    df_ = df.reset_index()
+    og_cols = df.columns
+    og_inds = df_.columns.difference(og_cols)
+    og_cols_enum = og_cols.intersection(columns)
+    oh = df_.drop(columns=df_.columns.intersection(columns))
+    if len(og_cols_enum):
+        col_oh = pd.get_dummies(df_[og_cols_enum])
+        oh = oh.join(col_oh)
+    og_inds_enum = og_inds.intersection(columns)
+    new_inds = og_inds
+    if len(og_inds_enum):
+        ind_oh = pd.get_dummies(df_[og_inds_enum])
+        oh = oh.join(ind_oh)
+        new_inds = new_inds.union(ind_oh.columns)
+    new_inds = oh.columns.intersection(new_inds)
+    oh = oh.set_index(new_inds.to_list())
+
+    if ignore_index:
+        oh = oh.reset_index()
+    
+    return oh
+
+
 def balance_data(
     X: pd.DataFrame,
     y: pd.DataFrame,
     class_labels: Optional[str] = None,
+    *,
     smote_instance=None,
 ):
     if smote_instance is None:

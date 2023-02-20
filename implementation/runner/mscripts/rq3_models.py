@@ -13,7 +13,7 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from itertools import product
 
-from data import CSVDataLoader, balance_data, Data, enum_cols, fit_cols
+from data import CSVDataLoader, balance_data, Data, make_one_hot, fit_cols
 
 SEED = 0
 MAX_REPEAT = 4
@@ -30,14 +30,17 @@ def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
     return fit_X
 
 
-def get_X_y(df: Data, one_hot: bool = False):
-    X = df.hstack_repeats().reset_index()
+def prep_data(df: Data, one_hot: bool = True, ignore_index: bool = False):
+    df_ = df
     if one_hot:
-        oh = pd.get_dummies(X[enum_cols])
-        X = X.drop(columns=enum_cols, level=0).join(oh)
-    y = df
+        df_ = make_one_hot(df_)
+    
+    df_ = df_.hstack_repeats()
 
-    return X, y
+    if not ignore_index:
+        df_ = df_.reset_index()
+
+    return df_
 
 
 def train_cv(model, X, y, *, cv=5, random_state=None):
@@ -172,11 +175,11 @@ if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
     df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.8)
 
-    X_train, y_train = get_X_y(df_train)
+    df_train_ = prep_data(df_train)
     sl_train = df_train.get_soft_labels()
     hl_train = df_train.get_hard_labels()
 
-    X_test, y_test = get_X_y(df_test)
+    df_test_ = prep_data(df_test)
     sl_test = df_test.get_soft_labels()
     hl_test = df_test.get_hard_labels()
 
@@ -187,7 +190,7 @@ if __name__ == "__main__":
         os.remove("rq3.txt")
     for method, kwparams in zip(methods, mparams):
         for i in range(MAX_REPEAT):
-            X_train_ = fit_range(X_train, i + 1)
-            X_test_ = fit_range(X_test, i + 1)
+            X_train_ = fit_range(df_train_, i + 1)
+            X_test_ = fit_range(df_test_, i + 1)
             m, s = train(X_train_, sl_train, method=method, cv=5, **kwparams)
             test(s, X_test_, sl_test, output_file="rq3.txt")
