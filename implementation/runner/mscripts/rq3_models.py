@@ -53,7 +53,7 @@ def train_model(model, X, y, *, cv=None, random_state=None):
         model.fit(X, y)
         scores = None
     else:
-        scores = train_cv(model, X, y)
+        scores = train_cv(model, X, y, cv=cv, random_state=random_state)
     return model, scores
 
 

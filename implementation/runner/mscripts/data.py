@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import cached_property, reduce
 from glob import glob
-from typing import Iterable, Optional, Sequence, Union
+from typing import Iterable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -130,6 +130,23 @@ class Data(pd.DataFrame):
         )
 
         return hlabels
+    
+    def split(
+        self,
+        frac: float,
+        randomize: bool = True,
+        random_state: Optional[Union[int, np.random.RandomState]] = None
+    ) -> Tuple[Data, Data]:
+        index = self.index.unique()
+        p1_size = int(np.round(len(index) * frac))
+        if randomize:
+            p1 = self.sample_by_index(p1_size, random_state=random_state)
+            p2 = self.drop(p1.index.to_list())
+        else:
+            p1 = self.loc[index[:p1_size]]
+            p2 = self.loc[index[p1_size:]]
+
+        return p1, p2
 
     def hstack_repeats(self, inplace: bool = False) -> Data:
         df_ = self if inplace else self.copy()
@@ -231,14 +248,7 @@ class CSVDataLoader:
             )
 
         if split:
-            df = (
-                (
-                    train := df.sample_by_index(
-                        int(count * split), random_state=random_state
-                    )
-                ),
-                df.drop(train.index.to_list()),
-            )
+            df = df.split(split, randomize=randomize, random_state=random_state)
         if agg_mode:
             agg_func = lambda df: df.aggregate(
                 agg_mode=agg_mode, randomize=randomize, random_state=random_state

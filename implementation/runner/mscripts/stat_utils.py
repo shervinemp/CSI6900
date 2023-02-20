@@ -24,6 +24,7 @@ def stat_test(
     b: pd.DataFrame,
     col_label_dict: Optional[Dict[Union[str, int], str]] = None,
     log: bool = False,
+    log_error: bool = False,
 ) -> pd.DataFrame:
     if col_label_dict is None:
         col_label_dict = {str(x): str(x) for x in a.columns.intersection(b.columns)}
@@ -38,9 +39,10 @@ def stat_test(
                 for k, v in d.items():
                     results[(label, slabel, k)] = [v]
             except ValueError as e:
-                pprint(
-                    f'The following exception happened in "{slabel}" for "{label}":\n{str(e)}'
-                )
+                if log_error:
+                    pprint(
+                        f'The following exception happened in "{slabel}" for "{label}":\n{str(e)}'
+                    )
     results = pd.DataFrame(results)
     results = unstack_col_level(results, "var", level=0)
     if log:

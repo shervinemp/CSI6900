@@ -181,6 +181,15 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         df_model_and["min"],
     ]
 
+    count_arr = [
+        cnt_random_first,
+        cnt_model_first,
+        cnt_random_or,
+        cnt_model_or,
+        cnt_random_and,
+        cnt_model_and,
+    ]
+
     base_arr = [
         f4["min"],
         f10["min"],
@@ -207,13 +216,13 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         print(f"{suffix}:")
 
     d = []
-    rs_stats_f4 = partial(rs_stats, baseline=f4["min"], base_label="f4")
+    rs_stats_f4 = partial(rs_stats, baseline=f4["min"], base_label="f4", base_count=4 * len(X))
 
-    s = rs_stats_f4(f10["min"], label="f10")
+    s = rs_stats_f4(f10["min"], label="f10", count=10 * len(X))
     d.append(s)
 
-    for r, l in zip(res_arr, labels):
-        s = rs_stats_f4(r, label=l)
+    for r, c, l in zip(res_arr, count_arr, labels):
+        s = rs_stats_f4(r, label=l, count=c)
         d.append(s)
 
     s = rs_stats(
@@ -246,7 +255,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     )
     d.append(s)
 
-    stats_df = pd.concat(d, axis=0).reset_index()
+    stats_df = pd.concat(d, axis=0).reset_index(drop=True)
     with pd.option_context("display.float_format", str):
         pprint(stats_df)
 
@@ -272,10 +281,10 @@ def rs_stats(
             print(f"#iterations - {base_label}: {base_count}")
     if label:
         stats["model"] = label
-    if count:
-        stats["runs"] = count
     if base_label:
         stats["base_model"] = base_label
+    if count:
+        stats["runs"] = count
     if base_count:
         stats["base_runs"] = base_count
     return stats
@@ -296,7 +305,7 @@ if __name__ == "__main__":
     hmodels = train_models(X_oh, hlabels)
     evaluate(X_oh, y, hmodels, suffix="hard", random_state=SEED)
 
-    delta_model = lambda X: (X.max(axis=1) - X.min(axis=1)) >= 0.1
+    delta_model = lambda X: ((d := X.T.groupby(level=0)).max() - d.min()).T[fit_cols].max(axis=1)
     dmodels = (delta_model,) * (MAX_REPEAT - 1)
     for n_ignore in range(1, 10):
-        evaluate(X, y, dmodels, suffix=f"delta_{n_ignore + 1}", random_state=SEED, n_ignore=n_ignore)
+        evaluate(X, y, dmodels, suffix=f"delta_{n_ignore + 1}", random_state=SEED, p_thresh=0.1, n_ignore=n_ignore)
