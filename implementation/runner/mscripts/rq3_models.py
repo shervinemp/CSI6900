@@ -173,7 +173,7 @@ def test(scores, X, y, output_file="rq3.txt"):
 
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
-    df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.8)
+    df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.75)
 
     sl_train = df_train.get_soft_labels()
     sl_test = df_test.get_soft_labels()

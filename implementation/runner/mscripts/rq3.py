@@ -41,9 +41,7 @@ def smart_fitness(
         ignore_index=False,
     )
 
-    mean_of_rows = h_proba.mean(axis=1).to_numpy()
-    normalized_h_proba = h_proba / mean_of_rows[:, np.newaxis]
-    w = pd.concat([normalized_h_proba] * len(fit_cols), axis=0)
+    w = pd.concat([h_proba] * len(fit_cols), axis=0)
     vals = df[range(1, max_rep + 1)]
 
     df["min"] = (vals.cummin(axis=1) * w).mean(axis=1)
@@ -60,11 +58,13 @@ def smart_fitness(
 def get_transition_proba(
     X: pd.DataFrame,
     models: Union[Sequence[Any], None] = None,
+    *,
     method: str = "first",
     max_rep: int = MAX_REPEAT,
     p_thresh: Union[float, None] = 0.5,
     n_ignore: Union[int, None] = None,
     n_continue: Union[int, None] = None,
+    normalize: bool = False,
 ):
     if method not in ("or", "and", "first"):
         raise ValueError(f'Method "{method}" is not valid.')
@@ -98,17 +98,31 @@ def get_transition_proba(
         t_proba.loc[:, :n_ignore] = 1
     if n_continue:
         t_proba.loc[:, n_continue:] = t_proba[[n_continue - 1]]
+
+    if normalize:
+        mean_of_rows = t_proba.mean(axis=1).to_numpy()
+        t_proba = t_proba / mean_of_rows[:, np.newaxis]
+    
     return t_proba
 
 
-def get_halt_proba(transition_proba: pd.DataFrame) -> pd.DataFrame:
-    w = transition_proba.copy()
-    pad_pos = w.shape[1] + 1
-    w.columns = range(1, pad_pos)
-    w[0] = 1
-    w[pad_pos] = 0
-    w = w.sort_index(axis=1).diff(periods=-1, axis=1).drop(columns=[pad_pos])
-    return w
+def get_halt_proba(
+    transition_proba: pd.DataFrame,
+    *,
+    normalize: bool = True
+) -> pd.DataFrame:
+    h_proba = transition_proba.copy()
+    pad_pos = h_proba.shape[1] + 1
+    h_proba.columns = range(1, pad_pos)
+    h_proba[0] = 1
+    h_proba[pad_pos] = 0
+    h_proba = h_proba.sort_index(axis=1).diff(periods=-1, axis=1).drop(columns=[pad_pos])
+
+    if normalize:
+        mean_of_rows = h_proba.mean(axis=1).to_numpy()
+        h_proba = h_proba / mean_of_rows[:, np.newaxis]
+
+    return h_proba
 
 
 def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
@@ -295,7 +309,7 @@ def rs_stats(
 
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
-    df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.8)
+    df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.75)
 
     sl_train = df_train.get_soft_labels()
     sl_test = df_test.get_soft_labels()
