@@ -158,13 +158,6 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     df_model_first, cnt_model_first = search_split(
         smart_fitness(X_, models=models, method="first", **kwargs)
     )
-    
-    # df_random_or, cnt_random_or = search_split(
-    #     smart_fitness(X_, models=None, method="or", **kwargs)
-    # )
-    # df_model_or, cnt_model_or = search_split(
-    #     smart_fitness(X_, models=models, method="or", **kwargs)
-    # )
 
     df_random_and, cnt_random_and = search_split(
         smart_fitness(X_, models=None, method="and", **kwargs)
@@ -189,8 +182,6 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     )
 
     labels = [
-        # "RS-Random-FIRST",
-        # "RS-Model-FIRST",
         "RS-Random-OR",
         "RS-Model-OR",
         "RS-Random-AND",
@@ -206,8 +197,6 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     res_arr = [
         df_random_first["min"],
         df_model_first["min"],
-        # df_random_or["min"],
-        # df_model_or["min"],
         df_random_and["min"],
         df_model_and["min"],
     ]
@@ -215,8 +204,6 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     count_arr = [
         cnt_random_first,
         cnt_model_first,
-        # cnt_random_or,
-        # cnt_model_or,
         cnt_random_and,
         cnt_model_and,
     ]
