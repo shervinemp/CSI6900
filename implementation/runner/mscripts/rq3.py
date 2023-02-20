@@ -35,10 +35,11 @@ def smart_fitness(
         n_continue=n_continue,
     )
     h_proba = get_halt_proba(t_proba)
+    n_steps = h_proba.shape[1]
 
-    value_vars_arr = [[(f, i) for f in fit_cols] for i in range(max_rep)]
-    var_names = [f"{i}_var" for i in range(1, max_rep + 1)]
-    value_names = list(range(1, max_rep + 1))
+    value_vars_arr = [[(f, i) for f in fit_cols] for i in range(n_steps)]
+    var_names = [f"{i}_var" for i in range(1, n_steps + 1)]
+    value_names = list(range(1, n_steps + 1))
     df = melt_multi(
         X,
         value_vars_arr=value_vars_arr,
@@ -48,7 +49,7 @@ def smart_fitness(
     )
 
     w = pd.concat([h_proba] * len(fit_cols), axis=0)
-    vals = df[range(1, max_rep + 1)]
+    vals = df[range(1, n_steps + 1)]
 
     df["min"] = (vals.cummin(axis=1) * w).mean(axis=1)
     df["mean"] = (vals.cumsum(axis=1) / range(1, vals.shape[1] + 1) * w).mean(axis=1)
