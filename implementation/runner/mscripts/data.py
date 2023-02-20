@@ -104,7 +104,7 @@ class Data(pd.DataFrame):
     def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self)
 
-    def get_soft_labels(self, thresh=0.01) -> pd.DataFrame:
+    def get_soft_labels(self, thresh: float = 0.01) -> pd.DataFrame:
         max_delta = self.max() - self.min()
         delta = self.groupby(level=get_level_from_index(self)).agg(
             lambda f: f.max() - f.min()
@@ -207,7 +207,7 @@ class Data(pd.DataFrame):
 
 
 class CSVDataLoader:
-    def __init__(self, filepath, index=in_cols):
+    def __init__(self, filepath: str, index=in_cols):
         self._df = pd.read_csv(filepath, index_col=0)
         # Set the index of the DataFrame
         self._df.set_index(index, inplace=True)
