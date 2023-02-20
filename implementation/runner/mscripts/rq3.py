@@ -26,7 +26,13 @@ def smart_fitness(
     n_continue: Union[int, None] = None,
 ):
     t_proba = get_transition_proba(
-        X, models, method, max_rep, p_thresh, n_ignore, n_continue
+        X,
+        models,
+        method=method,
+        max_rep=max_rep,
+        p_thresh=p_thresh,
+        n_ignore=n_ignore,
+        n_continue=n_continue,
     )
     h_proba = get_halt_proba(t_proba)
 
