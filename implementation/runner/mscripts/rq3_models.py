@@ -175,13 +175,14 @@ if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
     df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.8)
 
-    df_train_ = prep_data(df_train)
     sl_train = df_train.get_soft_labels()
-    hl_train = df_train.get_hard_labels()
-
-    df_test_ = prep_data(df_test)
     sl_test = df_test.get_soft_labels()
+    
+    hl_train = df_train.get_hard_labels()
     hl_test = df_test.get_hard_labels()
+
+    df_train_ = prep_data(df_train)
+    df_test_ = prep_data(df_test)
 
     methods = ("dt", "rf", "svm", "mlp")
     mparams = ({"max_depth": 5}, {"max_depth": 5}, {}, {"max_iter": 1000})

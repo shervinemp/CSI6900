@@ -9,7 +9,7 @@ import pandas as pd
 from data import CSVDataLoader, fit_cols, col_label_dict
 from post_rs import ITER_COUNT
 from rs import RandomSearch as RS
-from rq3_models import MAX_REPEAT, fit_range, get_X_y, train
+from rq3_models import MAX_REPEAT, fit_range, prep_data, train
 from stat_utils import stat_test
 from utils import hstack_with_labels, unstack_col_level, melt_multi
 
@@ -113,47 +113,50 @@ def get_halt_proba(transition_proba: pd.DataFrame) -> pd.DataFrame:
 
 def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
     models = []
-    for X_ in (fit_range(X, i) for i in range(1, MAX_REPEAT)):
-        model, scores = train(X_, y, class_labels, cv=cv, **kwargs)
+    X_ = prep_data(X)
+    for X_t in (fit_range(X_, i) for i in range(1, MAX_REPEAT)):
+        model, scores = train(X_t, y, class_labels, cv=cv, **kwargs)
         f1s = scores["test_f1"]
         models.append(scores["estimator"][np.argmax(f1s)])
     return models
 
 
 def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
+    X_ = prep_data(X)
+
     search_split = lambda sf: (RS.from_dataframe(sf[0], n_iter=ITER_COUNT), sf[1])
 
     df_random_first, cnt_random_first = search_split(
-        smart_fitness(X, models=None, method="first", **kwargs)
+        smart_fitness(X_, models=None, method="first", **kwargs)
     )
     df_model_first, cnt_model_first = search_split(
-        smart_fitness(X, models=models, method="first", **kwargs)
+        smart_fitness(X_, models=models, method="first", **kwargs)
     )
     df_random_or, cnt_random_or = search_split(
-        smart_fitness(X, models=None, method="or", **kwargs)
+        smart_fitness(X_, models=None, method="or", **kwargs)
     )
     df_model_or, cnt_model_or = search_split(
-        smart_fitness(X, models=models, method="or", **kwargs)
+        smart_fitness(X_, models=models, method="or", **kwargs)
     )
     df_random_and, cnt_random_and = search_split(
-        smart_fitness(X, models=None, method="and", **kwargs)
+        smart_fitness(X_, models=None, method="and", **kwargs)
     )
     df_model_and, cnt_model_and = search_split(
-        smart_fitness(X, models=models, method="and", **kwargs)
+        smart_fitness(X_, models=models, method="and", **kwargs)
     )
 
     agg_func = (
-        lambda df: df.aggregate(agg_mode=("min", "mean"))
+        lambda df: df.aggregate_repeats(agg_mode=("min", "mean"))
         .loc[df.index.unique()]
         .reset_index(drop=True)
     )
 
     # Random search for 10 repetitions...
-    f10 = RS.from_dataframe(agg_func(y), n_iter=ITER_COUNT)
+    f10 = RS.from_dataframe(agg_func(X), n_iter=ITER_COUNT)
 
     # Random search for 4 repetitions...
     f4 = RS.from_dataframe(
-        agg_func(y.groupby(level=y.index.names).sample(4, random_state=random_state)),
+        agg_func(X.groupby(level=X.index.names).sample(4, random_state=random_state)),
         n_iter=ITER_COUNT,
     )
 
@@ -292,20 +295,21 @@ def rs_stats(
 
 if __name__ == "__main__":
     # Read in a list of experiments from a file specified as the first command line argument
-    df = CSVDataLoader(sys.argv[1]).get()
+    df_train, df_test = CSVDataLoader(sys.argv[1]).get(split=0.8)
 
-    X, y = get_X_y(df)
-    X_oh, _ = get_X_y(df, one_hot=True)
-    slabels = df.get_soft_labels()
-    hlabels = df.get_hard_labels()
+    sl_train = df_train.get_soft_labels()
+    sl_test = df_test.get_soft_labels()
+    
+    hl_train = df_train.get_hard_labels()
+    hl_test = df_test.get_hard_labels()
 
-    smodels = train_models(X_oh, slabels)
-    evaluate(X_oh, y, smodels, suffix="soft", random_state=SEED)
+    smodels = train_models(df_train, sl_train)
+    evaluate(df_test, sl_test, smodels, suffix="soft", random_state=SEED)
 
-    hmodels = train_models(X_oh, hlabels)
-    evaluate(X_oh, y, hmodels, suffix="hard", random_state=SEED)
+    smodels = train_models(df_train, hl_train)
+    evaluate(df_test, hl_test, smodels, suffix="hard", random_state=SEED)
 
     delta_model = lambda X: ((d := X.T.groupby(level=0)).max() - d.min()).T[fit_cols].max(axis=1)
     dmodels = (delta_model,) * (MAX_REPEAT - 1)
     for n_ignore in range(1, 10):
-        evaluate(X, y, dmodels, suffix=f"delta_{n_ignore + 1}", random_state=SEED, p_thresh=0.1, n_ignore=n_ignore)
+        evaluate(df_test, sl_test, dmodels, suffix=f"delta_{n_ignore + 1}", random_state=SEED, p_thresh=0.1, n_ignore=n_ignore)

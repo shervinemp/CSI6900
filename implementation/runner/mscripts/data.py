@@ -199,7 +199,7 @@ class Data(pd.DataFrame):
             sample = sample.sort_index()
         return sample
 
-    def aggregate(
+    def aggregate_repeats(
         self,
         agg_mode: Union[str, Iterable[str]],
         *,
@@ -279,7 +279,7 @@ class CSVDataLoader:
         if split:
             df = df.split(split, randomize=randomize, random_state=random_state)
         if agg_mode:
-            agg_func = lambda df: df.aggregate(
+            agg_func = lambda df: df.aggregate_repeats(
                 agg_mode=agg_mode, randomize=randomize, random_state=random_state
             )
             if split:
