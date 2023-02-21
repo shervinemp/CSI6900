@@ -1,9 +1,20 @@
+import itertools
 from itertools import cycle
 from typing import Union
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
+
+def pairwise_stride2(iterable):
+    iterable = iter(iterable)  # ensure the iterable is a generator
+    iterable = itertools.chain(iterable, [None])  # add a None value to the end
+    a, b = itertools.tee(iterable)
+    stride_a = itertools.islice(a, 0, None, 2)
+    stride_b = itertools.islice(b, 1, None, 2)
+    yield from zip(stride_a, stride_b)
 
 
 def static_vars(**kwargs):

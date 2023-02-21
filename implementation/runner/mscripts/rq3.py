@@ -1,18 +1,17 @@
-from itertools import pairwise
-from pprint import pprint
 import sys
 from functools import partial
-from typing import Any, Optional, Sequence, Union
+from pprint import pprint
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-
-from data import CSVDataLoader, fit_cols, col_label_dict
+from sklearn.metrics import precision_recall_fscore_support
+from data import CSVDataLoader, col_label_dict, fit_cols, fit_labels_short
 from post_rs import ITER_COUNT
-from rs import RandomSearch as RS
 from rq3_models import MAX_REPEAT, fit_range, prep_data, train
+from rs import RandomSearch as RS
 from stat_utils import stat_test
-from utils import hstack_with_labels, unstack_col_level, melt_multi
+from utils import hstack_with_labels, melt_multi, pairwise_stride2, unstack_col_level
 
 SEED = 0
 
@@ -25,7 +24,7 @@ def smart_fitness(
     p_thresh: float = 0.5,
     n_ignore: Optional[int] = None,
     n_continue: Optional[int] = None,
-):
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     t_proba = get_transition_proba(
         X,
         models,
@@ -57,10 +56,9 @@ def smart_fitness(
 
     df["f"] = df["1_var"]
     df = pd.pivot(df, columns="f", values=["min", "mean"])
-    cnt = (t_proba.sum(axis=1) + 1).sum()
-    cnt = int(np.round(cnt))
+    cnt_df = t_proba.sum(axis=1) + 1
 
-    return df, cnt
+    return df, cnt_df
 
 
 def get_transition_proba(
@@ -98,7 +96,7 @@ def get_transition_proba(
         if method == "and":
             t_proba = pred_df.cumprod(axis=1)
         elif method == "or":
-            t_proba = (~pred_df).cumprod(axis=1)
+            t_proba = (1 - pred_df).cumprod(axis=1)
         elif method == "first":
             t_proba = pd.concat((pred_df[[0]],) * len(pred_df.columns), axis=1).astype(
                 float
@@ -202,10 +200,10 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     ]
 
     count_arr = [
-        cnt_random_first,
-        cnt_model_first,
-        cnt_random_and,
-        cnt_model_and,
+        cnt_random_first.sum(),
+        cnt_model_first.sum(),
+        cnt_random_and.sum(),
+        cnt_model_and.sum(),
     ]
 
     base_arr = [
@@ -235,23 +233,37 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
 
     d = []
     rs_stats_f4 = partial(
-        rs_stats, baseline=f4["min"], base_label="f4", base_count=4 * len(X)
+        rs_stats, baseline=f4["min"], base_label="f4", base_count=len(f4)
     )
 
-    s = rs_stats_f4(f10["min"], label="f10", count=10 * len(X))
+    s = rs_stats_f4(f10["min"], label="f10", count=len(f10))
     d.append(s)
 
     for r, c, l in zip(res_arr, count_arr, labels):
         s = rs_stats_f4(r, label=l, count=c)
         d.append(s)
 
-    for (df1, l1, cnt1), (df2, l2, cnt2) in pairwise(zip(res_arr, labels, count_arr)):
+    for (df1, l1, cnt1), (df2, l2, cnt2) in pairwise_stride2(
+        zip(res_arr, labels, count_arr)
+    ):
         s = rs_stats(df1, df2, l1, l2, cnt1, cnt2)
         d.append(s)
 
     stats_df = pd.concat(d, axis=0).reset_index(drop=True)
     with pd.option_context("display.float_format", str):
         pprint(stats_df)
+
+    for l, y_pred in zip(
+        labels,
+        [
+            cnt_random_first == 4,
+            cnt_model_first == 4,
+            cnt_random_and == 4,
+            cnt_model_and == 4,
+        ],
+    ):
+        print(f"{l}:")
+        pprint(precision_recall_fscore_support(y, y_pred, average="binary"))
 
 
 def rs_stats(

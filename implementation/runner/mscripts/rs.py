@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-FONT_SCALE = 2.2
+FONT_SCALE = 1.5
 
 
 class RandomSearch(pd.DataFrame):
@@ -124,7 +124,7 @@ class RandomSearch(pd.DataFrame):
         )
 
         sns.set(font_scale=FONT_SCALE)
-        fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
+        fig, axes = plt.subplots(len(cols), 1, figsize=(5, 5 * len(cols)))
         kwparams = dict(x=RandomSearch.iter_col, legend=False, data=data)
         if class_col:
             kwparams["hue"] = class_col
