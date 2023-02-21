@@ -232,6 +232,9 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         legend_kwargs=dict(loc="lower left", fontsize=8),
     )
 
+    print("means:")
+    pprint(res_dfs.get_last_iter(groupby="method").mean())
+
     if suffix:
         print(f"{suffix}:")
 
