@@ -5,7 +5,7 @@ from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from data import CSVDataLoader, col_label_dict, fit_cols, fit_labels_short
+from data import CSVDataLoader, col_label_dict, fit_cols
 from post_rs import ITER_COUNT
 from rq3_models import MAX_REPEAT, fit_range, prep_data, train
 from rs import RandomSearch as RS
@@ -24,19 +24,22 @@ def smart_fitness(
     X: pd.DataFrame,
     models: Optional[Sequence[Any]] = None,
     method: str = "first",
-    max_rep: int = MAX_REPEAT,
     p_thresh: float = 0.5,
+    n_beg: int = 1,
     n_ignore: Optional[int] = None,
     n_continue: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    t_proba = get_transition_proba(
+    v_proba = get_visit_proba(
         X,
-        models,
-        method=method,
-        max_rep=max_rep,
+        models[:-1] if models else None,
         p_thresh=p_thresh,
+        n_beg=n_beg,
         n_ignore=n_ignore,
         n_continue=n_continue,
+    )
+    t_proba = get_transition_proba(
+        v_proba,
+        method=method,
     )
     h_proba = get_halt_proba(t_proba)
     n_steps = h_proba.shape[1]
@@ -53,6 +56,9 @@ def smart_fitness(
     )
 
     w = pd.concat([h_proba] * len(fit_cols), axis=0)
+    mean_of_rows = w.mean(axis=1).to_numpy()
+    w = w / mean_of_rows[:, np.newaxis]
+
     vals = df[range(1, n_steps + 1)]
 
     df["min"] = (vals.cummin(axis=1) * w).mean(axis=1)
@@ -65,58 +71,73 @@ def smart_fitness(
     return df, cnt_df
 
 
-def get_transition_proba(
+def get_visit_proba(
     X: pd.DataFrame,
     models: Optional[Sequence[Any]] = None,
     *,
-    method: str = "first",
-    max_rep: int = MAX_REPEAT,
-    p_thresh: float = 0.5,
-    n_skip: Optional[int] = None,
-    n_ignore: Optional[int] = None,
+    p_thresh: bool = 0.5,
+    n_beg: int = 1,
+    n_end: Optional[int] = None,
     n_continue: Optional[int] = None,
-    normalize: bool = False,
-):
+) -> pd.DataFrame:
+    s = X.iloc[0].groupby(level=0, axis=1).size().max()
+
+    if n_end is None:
+        n_end = s
+    elif n_end < 0:
+        n_end = s + n_end
+
+    predict = lambda m, x: m.predict(x) if hasattr(m, "predict") else m(x)
+
+    if models is None:
+        models = (lambda x: np.ones(x.shape[0]) * p_thresh,) * (n_end - n_beg)
+    else:
+        models = [
+            (
+                (p := partial(predict, m=m))
+                if p_thresh is None
+                else (lambda x: p(x) >= p_thresh)
+            )
+            for m in models
+        ]
+
+    pred = np.array(
+        [
+            pred_fn(x)
+            for pred_fn, x in zip(
+                models, (fit_range(X, i) for i in range(n_beg, n_end))
+            )
+        ]
+    ).T
+    pred_df = pd.DataFrame(pred, columns=range(n_beg, n_end))
+    pred_df.loc[:, range(n_beg)] = 1
+
+    if n_continue:
+        pred_df.loc[:, n_continue:] = 1
+
+    return pred_df
+
+
+def get_transition_proba(
+    visit_proba: pd.DataFrame,
+    method: str = "first",
+) -> pd.DataFrame:
     if method not in ("or", "and", "first"):
         raise ValueError(f'Method "{method}" is not valid.')
 
-    if models is None:
-        models = (lambda x: np.ones(x.shape[0]) * p_thresh,) * max_rep
-
-    predict = lambda m, x: m.predict(x) if hasattr(m, "predict") else m(x)
-    pred = np.array(
-        [
-            predict(m, x) if p_thresh is None else predict(m, x) >= p_thresh
-            for m, x in zip(models, (fit_range(X, i) for i in range(1, max_rep)))
-        ]
-    ).T
-    pred_df = pd.DataFrame(pred)
     if method == "and":
-        t_proba = pred_df.cumprod(axis=1)
+        t_proba = visit_proba.cumprod(axis=1)
     elif method == "or":
-        t_proba = (1 - pred_df).cumprod(axis=1)
+        t_proba = (1 - visit_proba).cumprod(axis=1)
     elif method == "first":
-        t_proba = pd.concat((pred_df[[0]],) * len(pred_df.columns), axis=1).astype(
+        t_proba = pd.concat((visit_proba[[0]],) * visit_proba.shape[1], axis=1).astype(
             float
         )
-    if n_skip:
-        t_proba.loc[:, n_skip:] = t_proba.loc[:, : t_proba.shape[1] - n_skip]
-        t_proba.loc[:, :n_skip] = 1
-    if n_ignore:
-        t_proba.loc[:, :n_ignore] = 1
-    if n_continue:
-        t_proba.loc[:, n_continue:] = t_proba[[n_continue - 1]]
-
-    if normalize:
-        mean_of_rows = t_proba.mean(axis=1).to_numpy()
-        t_proba = t_proba / mean_of_rows[:, np.newaxis]
 
     return t_proba
 
 
-def get_halt_proba(
-    transition_proba: pd.DataFrame, *, normalize: bool = True
-) -> pd.DataFrame:
+def get_halt_proba(transition_proba: pd.DataFrame) -> pd.DataFrame:
     h_proba = transition_proba.copy()
     pad_pos = h_proba.shape[1] + 1
     h_proba.columns = range(1, pad_pos)
@@ -125,10 +146,6 @@ def get_halt_proba(
     h_proba = (
         h_proba.sort_index(axis=1).diff(periods=-1, axis=1).drop(columns=[pad_pos])
     )
-
-    if normalize:
-        mean_of_rows = h_proba.mean(axis=1).to_numpy()
-        h_proba = h_proba / mean_of_rows[:, np.newaxis]
 
     return h_proba
 
@@ -172,8 +189,10 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     f10 = RS.from_dataframe(agg_func(X), n_iter=ITER_COUNT)
 
     # Random search for 4 repetitions...
-    f4 = RS.from_dataframe(
-        agg_func(X.groupby(level=X.index.names).sample(4, random_state=random_state)),
+    fm = RS.from_dataframe(
+        agg_func(
+            X.groupby(level=X.index.names).sample(MAX_REPEAT, random_state=random_state)
+        ),
         n_iter=ITER_COUNT,
     )
 
@@ -185,7 +204,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     ]
 
     base_labels = [
-        "RSn4",
+        f"RSn{MAX_REPEAT}",
         "RSn10",
         "RSn10-MEAN",
     ]
@@ -205,7 +224,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     ]
 
     base_arr = [
-        f4["min"],
+        fm["min"],
         f10["min"],
         f10["mean"],
     ]
@@ -226,15 +245,12 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         legend_kwargs=dict(loc="lower left", fontsize=8),
     )
 
-    print("means:")
-    pprint(res_dfs.get_last_iter(groupby="method").groupby("method").mean())
-
     if suffix:
         print(f"{suffix}:")
 
     d = []
     rs_stats_f4 = partial(
-        rs_stats, baseline=f4["min"], base_label="f4", base_count=len(f4)
+        rs_stats, baseline=fm["min"], base_label=f"f{MAX_REPEAT}", base_count=len(fm)
     )
 
     s = rs_stats_f4(f10["min"], label="f10", count=len(f10))
@@ -265,6 +281,9 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     ):
         print(f"{l}:")
         pprint(precision_recall_fscore_support(y, y_pred, average="binary"))
+
+    print("means:")
+    pprint(res_dfs.get_last_iter(groupby="method").groupby("method").mean())
 
 
 def rs_stats(

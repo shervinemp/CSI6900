@@ -1,7 +1,7 @@
 import math
 import os
 import sys
-from typing import Any, Dict, Tuple, Union, Sequence
+from typing import Optional, Union, Sequence
 
 import numpy as np
 import pandas as pd
@@ -18,6 +18,10 @@ from data import CSVDataLoader, balance_data, Data, make_one_hot, fit_cols
 SEED = 0
 MAX_REPEAT = 4
 
+import warnings
+
+warnings.filterwarnings("ignore")
+
 # Create a pseudorandom number generator with the specified seed
 random_ = np.random.RandomState(seed=SEED)
 
@@ -26,12 +30,21 @@ def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
     if type(rang) is int:
         rang = range(rang)
     dcols = list(product(fit_cols, rang))
-    fit_X = X.drop(X.columns.intersection(dcols), axis=1)
+    fit_X = X[X.columns.intersection(dcols)]
     return fit_X
 
 
-def prep_data(df: Data, one_hot: bool = True, reset_index: bool = True):
+def prep_data(
+    df: Data,
+    one_hot: bool = True,
+    max_repeats: Optional[int] = None,
+    reset_index: bool = True,
+):
     df_ = df
+
+    if max_repeats:
+        df_ = df_.groupbyindex().head(max_repeats)
+
     if one_hot:
         df_ = make_one_hot(df_)
 
@@ -138,7 +151,10 @@ def train_best(
         if compare(score_mean, score_best):
             score_best = score_mean
             model_best = model
-    return model_best, score_best
+
+    model_trained, _ = train_model(model_best, X, y, cv=None)
+
+    return model_trained, score_best
 
 
 def test(scores, X, y, output_file="rq3.txt"):
@@ -181,8 +197,8 @@ if __name__ == "__main__":
     hl_train = df_train.get_hard_labels()
     hl_test = df_test.get_hard_labels()
 
-    df_train_ = prep_data(df_train)
-    df_test_ = prep_data(df_test)
+    df_train_ = prep_data(df_train, max_repeats=MAX_REPEAT)
+    df_test_ = prep_data(df_test, max_repeats=MAX_REPEAT)
 
     methods = ("dt", "rf", "svm", "mlp")
     mparams = ({"max_depth": 5}, {"max_depth": 5}, {}, {"max_iter": 1000})
@@ -194,4 +210,4 @@ if __name__ == "__main__":
             X_train_ = fit_range(df_train_, i + 1)
             X_test_ = fit_range(df_test_, i + 1)
             m, s = train(X_train_, sl_train, method=method, cv=5, **kwparams)
-            test(s, X_test_, sl_test, output_file="rq3.txt")
+            test(s, X_test_, sl_test, output_file=f"rq3.txt")

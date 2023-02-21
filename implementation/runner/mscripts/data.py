@@ -135,9 +135,7 @@ class Data(pd.DataFrame):
 
     def get_soft_labels(self, thresh: float = 0.01) -> pd.DataFrame:
         max_delta = self.max() - self.min()
-        delta = self.groupby(level=get_level_from_index(self)).agg(
-            lambda f: f.max() - f.min()
-        )
+        delta = self.groupbyindex().agg(lambda f: f.max() - f.min())
         slabels = (
             (delta / max_delta >= thresh)
             .any(axis=1)
@@ -148,9 +146,12 @@ class Data(pd.DataFrame):
 
         return slabels
 
+    def groupbyindex(self):
+        return self.groupby(level=get_level_from_index(self))
+
     def get_hard_labels(self) -> pd.DataFrame:
         hlabels = (
-            self.groupby(level=get_level_from_index(self))
+            self.groupbyindex()
             .agg(lambda f: (f > 0).any() & (f <= 0).any())
             .any(axis=1)
             .to_frame("label")
@@ -180,7 +181,7 @@ class Data(pd.DataFrame):
     def hstack_repeats(self, inplace: bool = False) -> Data:
         df_ = self if inplace else self.copy()
         cols = df_.columns
-        df_["i"] = df_.groupby(level=get_level_from_index(self)).cumcount()
+        df_["i"] = df_.groupbyindex().cumcount()
         df_ = df_.pivot(columns=["i"], values=cols)
 
         return df_.to_df()
@@ -213,11 +214,9 @@ class Data(pd.DataFrame):
         else:
             multi_agg = True
 
-        repeats = self.groupby(level=get_level_from_index(self))
+        repeats = self.groupbyindex()
         if randomize:
-            repeats = repeats.sample(frac=1, random_state=random_state).groupby(
-                level=get_level_from_index(self)
-            )
+            repeats = repeats.sample(frac=1, random_state=random_state).groupbyindex()
 
         df_ = reduce(
             lambda l, r: l.merge(r, left_index=True, right_index=True),
