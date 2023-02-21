@@ -81,30 +81,24 @@ def get_transition_proba(
         raise ValueError(f'Method "{method}" is not valid.')
 
     if models is None:
-        if method == "and":
-            t_proba = np.logspace(1, max_rep - 1, num=max_rep - 1, base=p_thresh)
-        elif method == "or":
-            t_proba = np.logspace(1, max_rep - 1, num=max_rep - 1, base=1 - p_thresh)
-        elif method == "first":
-            t_proba = np.ones(max_rep - 1) * p_thresh
-        t_proba = pd.DataFrame(t_proba[np.newaxis, :].repeat(len(X), axis=0))
-    else:
-        predict = lambda m, x: m.predict(x) if hasattr(m, "predict") else m(x)
-        pred = np.array(
-            [
-                predict(m, x) if p_thresh is None else predict(m, x) >= p_thresh
-                for m, x in zip(models, (fit_range(X, i) for i in range(1, max_rep)))
-            ]
-        ).T
-        pred_df = pd.DataFrame(pred)
-        if method == "and":
-            t_proba = pred_df.cumprod(axis=1)
-        elif method == "or":
-            t_proba = (1 - pred_df).cumprod(axis=1)
-        elif method == "first":
-            t_proba = pd.concat((pred_df[[0]],) * len(pred_df.columns), axis=1).astype(
-                float
-            )
+        models = (lambda x: np.ones(x.shape[0]) * p_thresh,) * max_rep
+
+    predict = lambda m, x: m.predict(x) if hasattr(m, "predict") else m(x)
+    pred = np.array(
+        [
+            predict(m, x) if p_thresh is None else predict(m, x) >= p_thresh
+            for m, x in zip(models, (fit_range(X, i) for i in range(1, max_rep)))
+        ]
+    ).T
+    pred_df = pd.DataFrame(pred)
+    if method == "and":
+        t_proba = pred_df.cumprod(axis=1)
+    elif method == "or":
+        t_proba = (1 - pred_df).cumprod(axis=1)
+    elif method == "first":
+        t_proba = pd.concat((pred_df[[0]],) * len(pred_df.columns), axis=1).astype(
+            float
+        )
     if n_skip:
         t_proba.loc[:, n_skip:] = t_proba.loc[:, : t_proba.shape[1] - n_skip]
         t_proba.loc[:, :n_skip] = 1
