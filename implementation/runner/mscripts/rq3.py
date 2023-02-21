@@ -2,7 +2,7 @@ from itertools import pairwise
 from pprint import pprint
 import sys
 from functools import partial
-from typing import Any, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -19,12 +19,12 @@ SEED = 0
 
 def smart_fitness(
     X: pd.DataFrame,
-    models: Union[Sequence[Any], None] = None,
+    models: Optional[Sequence[Any]] = None,
     method: str = "first",
     max_rep: int = MAX_REPEAT,
-    p_thresh: Union[float, None] = 0.5,
-    n_ignore: Union[int, None] = None,
-    n_continue: Union[int, None] = None,
+    p_thresh: float = 0.5,
+    n_ignore: Optional[int] = None,
+    n_continue: Optional[int] = None,
 ):
     t_proba = get_transition_proba(
         X,
@@ -65,14 +65,14 @@ def smart_fitness(
 
 def get_transition_proba(
     X: pd.DataFrame,
-    models: Union[Sequence[Any], None] = None,
+    models: Optional[Sequence[Any]] = None,
     *,
     method: str = "first",
     max_rep: int = MAX_REPEAT,
-    p_thresh: Union[float, None] = 0.5,
-    n_skip: Union[int, None] = None,
-    n_ignore: Union[int, None] = None,
-    n_continue: Union[int, None] = None,
+    p_thresh: float = 0.5,
+    n_skip: Optional[int] = None,
+    n_ignore: Optional[int] = None,
+    n_continue: Optional[int] = None,
     normalize: bool = False,
 ):
     if method not in ("or", "and", "first"):
@@ -137,10 +137,10 @@ def get_halt_proba(
     return h_proba
 
 
-def train_models(X, y, class_labels=None, *, cv=5, **kwargs):
+def train_models(X, y, class_labels=None, *, cv=5, max_rep=MAX_REPEAT, **kwargs):
     models = []
     X_ = prep_data(X)
-    for X_t in (fit_range(X_, i) for i in range(1, MAX_REPEAT)):
+    for X_t in (fit_range(X_, i) for i in range(1, max_rep + 1)):
         model, scores = train(X_t, y, class_labels, cv=cv, **kwargs)
         f1s = scores["test_f1"]
         models.append(scores["estimator"][np.argmax(f1s)])
@@ -167,7 +167,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     )
 
     agg_func = (
-        lambda df: df.aggregate_repeats(agg_mode=("min", "mean"))
+        lambda df: df.agg_repeats(agg_mode=("min", "mean"))
         .loc[df.index.unique()]
         .reset_index(drop=True)
     )
@@ -298,7 +298,13 @@ if __name__ == "__main__":
     smodels = train_models(df_train, hl_train)
     evaluate(df_test, hl_test, smodels, suffix="hard", random_state=SEED)
 
-    delta_model = lambda X: ((d := X.T.groupby(level=0)).max() - d.min()).T[fit_cols].max(axis=1)
-    dmodels = (delta_model,) * (MAX_REPEAT - 1)
+    delta_model = lambda X: ((d := X[fit_cols].groupby(level=0, axis=1)).max() - d.min()).max(axis=1)
+    dmodels_base = (delta_model,) * (MAX_REPEAT - 1)
+    for n_ignore in range(1, 10):
+        evaluate(df_test, sl_test, dmodels_base, suffix=f"delta_{n_ignore + 1}", random_state=SEED, p_thresh=0.1, n_ignore=n_ignore)
+    
+    delta_transform = lambda X: (X.agg_repeats("cummax") - X.agg_repeats("cummin")).max(axis=1)
+    dmodels = train_models(delta_transform(df_train), sl_train)
+    dmodels = [(lambda X: m.predict(X.groupby(level=0, axis=1).last())) for m in dmodels]
     for n_ignore in range(1, 10):
         evaluate(df_test, sl_test, dmodels, suffix=f"delta_{n_ignore + 1}", random_state=SEED, p_thresh=0.1, n_ignore=n_ignore)
