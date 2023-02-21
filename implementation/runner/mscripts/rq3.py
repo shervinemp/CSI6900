@@ -5,15 +5,19 @@ from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import precision_recall_fscore_support
 from data import CSVDataLoader, col_label_dict, fit_cols, fit_labels_short
 from post_rs import ITER_COUNT
 from rq3_models import MAX_REPEAT, fit_range, prep_data, train
 from rs import RandomSearch as RS
+from sklearn.metrics import precision_recall_fscore_support
 from stat_utils import stat_test
 from utils import hstack_with_labels, melt_multi, pairwise_stride2, unstack_col_level
 
 SEED = 0
+
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 def smart_fitness(
