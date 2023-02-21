@@ -233,7 +233,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     )
 
     print("means:")
-    pprint(res_dfs.get_last_iter(groupby="method").mean())
+    pprint(res_dfs.get_last_iter(groupby="method").groupby("method").mean())
 
     if suffix:
         print(f"{suffix}:")
