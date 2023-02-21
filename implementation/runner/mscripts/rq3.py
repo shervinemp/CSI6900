@@ -104,7 +104,7 @@ def get_transition_proba(
                 float
             )
     if n_skip:
-        t_proba.loc[:, n_skip:] = t_proba.loc[:, :t_proba.shape[1] - n_skip]
+        t_proba.loc[:, n_skip:] = t_proba.loc[:, : t_proba.shape[1] - n_skip]
         t_proba.loc[:, :n_skip] = 1
     if n_ignore:
         t_proba.loc[:, :n_ignore] = 1
@@ -114,21 +114,21 @@ def get_transition_proba(
     if normalize:
         mean_of_rows = t_proba.mean(axis=1).to_numpy()
         t_proba = t_proba / mean_of_rows[:, np.newaxis]
-    
+
     return t_proba
 
 
 def get_halt_proba(
-    transition_proba: pd.DataFrame,
-    *,
-    normalize: bool = True
+    transition_proba: pd.DataFrame, *, normalize: bool = True
 ) -> pd.DataFrame:
     h_proba = transition_proba.copy()
     pad_pos = h_proba.shape[1] + 1
     h_proba.columns = range(1, pad_pos)
     h_proba[0] = 1
     h_proba[pad_pos] = 0
-    h_proba = h_proba.sort_index(axis=1).diff(periods=-1, axis=1).drop(columns=[pad_pos])
+    h_proba = (
+        h_proba.sort_index(axis=1).diff(periods=-1, axis=1).drop(columns=[pad_pos])
+    )
 
     if normalize:
         mean_of_rows = h_proba.mean(axis=1).to_numpy()
@@ -234,7 +234,9 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
         print(f"{suffix}:")
 
     d = []
-    rs_stats_f4 = partial(rs_stats, baseline=f4["min"], base_label="f4", base_count=4 * len(X))
+    rs_stats_f4 = partial(
+        rs_stats, baseline=f4["min"], base_label="f4", base_count=4 * len(X)
+    )
 
     s = rs_stats_f4(f10["min"], label="f10", count=10 * len(X))
     d.append(s)
@@ -242,7 +244,7 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     for r, c, l in zip(res_arr, count_arr, labels):
         s = rs_stats_f4(r, label=l, count=c)
         d.append(s)
-    
+
     for (df1, l1, cnt1), (df2, l2, cnt2) in pairwise(zip(res_arr, labels, count_arr)):
         s = rs_stats(df1, df2, l1, l2, cnt1, cnt2)
         d.append(s)
@@ -288,7 +290,7 @@ if __name__ == "__main__":
 
     sl_train = df_train.get_soft_labels()
     sl_test = df_test.get_soft_labels()
-    
+
     hl_train = df_train.get_hard_labels()
     hl_test = df_test.get_hard_labels()
 
@@ -298,13 +300,35 @@ if __name__ == "__main__":
     smodels = train_models(df_train, hl_train)
     evaluate(df_test, hl_test, smodels, suffix="hard", random_state=SEED)
 
-    delta_model = lambda X: ((d := X[fit_cols].groupby(level=0, axis=1)).max() - d.min()).max(axis=1)
+    delta_model = lambda X: (
+        (d := X[fit_cols].groupby(level=0, axis=1)).max() - d.min()
+    ).max(axis=1)
     dmodels_base = (delta_model,) * (MAX_REPEAT - 1)
     for n_ignore in range(1, 10):
-        evaluate(df_test, sl_test, dmodels_base, suffix=f"delta_{n_ignore + 1}", random_state=SEED, p_thresh=0.1, n_ignore=n_ignore)
-    
-    delta_transform = lambda X: (X.agg_repeats("cummax") - X.agg_repeats("cummin")).max(axis=1)
+        evaluate(
+            df_test,
+            sl_test,
+            dmodels_base,
+            suffix=f"delta_{n_ignore + 1}",
+            random_state=SEED,
+            p_thresh=0.1,
+            n_ignore=n_ignore,
+        )
+
+    delta_transform = lambda X: (X.agg_repeats("cummax") - X.agg_repeats("cummin")).max(
+        axis=1
+    )
     dmodels = train_models(delta_transform(df_train), sl_train)
-    dmodels = [(lambda X: m.predict(X.groupby(level=0, axis=1).last())) for m in dmodels]
+    dmodels = [
+        (lambda X: m.predict(X.groupby(level=0, axis=1).last())) for m in dmodels
+    ]
     for n_ignore in range(1, 10):
-        evaluate(df_test, sl_test, dmodels, suffix=f"delta_{n_ignore + 1}", random_state=SEED, p_thresh=0.1, n_ignore=n_ignore)
+        evaluate(
+            df_test,
+            sl_test,
+            dmodels,
+            suffix=f"delta_{n_ignore + 1}",
+            random_state=SEED,
+            p_thresh=0.1,
+            n_ignore=n_ignore,
+        )

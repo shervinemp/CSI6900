@@ -34,7 +34,7 @@ def prep_data(df: Data, one_hot: bool = True, reset_index: bool = True):
     df_ = df
     if one_hot:
         df_ = make_one_hot(df_)
-    
+
     df_ = df_.hstack_repeats()
 
     if reset_index:
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     sl_train = df_train.get_soft_labels()
     sl_test = df_test.get_soft_labels()
-    
+
     hl_train = df_train.get_hard_labels()
     hl_test = df_test.get_hard_labels()
 
