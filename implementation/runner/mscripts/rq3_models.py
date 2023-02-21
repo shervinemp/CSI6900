@@ -30,14 +30,14 @@ def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
     return fit_X
 
 
-def prep_data(df: Data, one_hot: bool = True, ignore_index: bool = False):
+def prep_data(df: Data, one_hot: bool = True, reset_index: bool = True):
     df_ = df
     if one_hot:
         df_ = make_one_hot(df_)
     
     df_ = df_.hstack_repeats()
 
-    if not ignore_index:
+    if reset_index:
         df_ = df_.reset_index()
 
     return df_
