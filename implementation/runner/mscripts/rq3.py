@@ -157,11 +157,15 @@ def get_halt_proba(reach_proba: pd.DataFrame) -> pd.DataFrame:
     return h_proba
 
 
-def train_models(X, y, class_labels=None, *, cv=5, max_rep=MAX_REPEAT, **kwargs):
+def train_models(X, y, class_labels=None, *, cv=5, max_repeats=MAX_REPEAT, **kwargs):
     models = []
-    X_ = prep_data(X)
-    for X_t in (fit_range(X_, i) for i in range(1, max_rep + 1)):
-        model, scores = train_best(X_t, y, class_labels, cv=cv, **kwargs)
+    X_ = prep_data(X, max_repeats=max_repeats)
+    t_ = partial(train_best, y=y, class_labels=class_labels, cv=cv, **kwargs)
+    if max_repeats == -1:
+        model, scores = t_(X_)
+        return model
+    for X_t in (fit_range(X_, i) for i in range(1, max_repeats + 1)):
+        model, scores = t_(X_t)
         models.append(model)
     return models
 
@@ -348,19 +352,20 @@ if __name__ == "__main__":
             n_ignore=n_ignore,
         )
 
-    delta_transform = lambda X: (X.agg_repeats("cummax") - X.agg_repeats("cummin")).max(
-        axis=1
+    delta_transform = (
+        lambda X: (X.agg_repeats("cummax") - X.agg_repeats("cummin"))
+        .max(axis=1)
+        .to_frame()
     )
-    dmodels = train_models(delta_transform(df_train), sl_train)
-    dmodels = [
-        (lambda X: m.predict(X.groupby(level=0, axis=1).last())) for m in dmodels
-    ]
+    dmodel = train_models(delta_transform(df_train), sl_train, max_repeats=-1)
+    dmodels = (lambda X: dmodel.predict(X.groupby(level=0, axis=1).last()),) * 9
     for n_ignore in range(0, 8):
         evaluate(
             df_test,
             sl_test,
             dmodels,
             suffix=f"delta_{n_ignore + 2}",
+            max_repeats=-1,
             random_state=SEED,
             p_thresh=0.1,
             n_begin=2,

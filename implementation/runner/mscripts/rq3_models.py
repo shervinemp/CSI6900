@@ -36,19 +36,21 @@ def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
 
 def prep_data(
     df: Data,
+    *,
     one_hot: bool = True,
     max_repeats: Optional[int] = None,
     reset_index: bool = True,
 ):
     df_ = df
 
-    if max_repeats:
+    if max_repeats and max_repeats > 0:
         df_ = df_.groupbyindex().head(max_repeats)
 
     if one_hot:
         df_ = make_one_hot(df_)
 
-    df_ = df_.hstack_repeats()
+    if max_repeats != -1:
+        df_ = df_.hstack_repeats()
 
     if reset_index:
         df_ = df_.reset_index()
