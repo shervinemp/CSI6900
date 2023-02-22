@@ -54,6 +54,7 @@ class RandomSearch(pd.DataFrame):
         output_file: str = "rs_iters.pdf",
         ylim_dict: Optional[Dict[Union[str, int], Tuple[float, float]]] = None,
         legend_kwargs: Optional[Dict[str, Any]] = None,
+        vertical: bool = True,
         show: bool = False,
     ):
         labels = labels or cycle([None])
@@ -72,11 +73,20 @@ class RandomSearch(pd.DataFrame):
         data = self.reset_index()
 
         sns.set(font_scale=FONT_SCALE)
-        fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
+        
+        figsize = (5, 5 * len(cols)) if vertical else (5 * len(cols), 5)
+        fig, axes = (
+            plt.subplots(len(cols), 1, figsize=figsize)
+            if vertical
+            else plt.subplots(1, len(cols), figsize=figsize)
+        )
+
         kwparams = dict(x=RandomSearch.iter_col, legend=False, data=data)
         if class_col:
             kwparams["hue"] = class_col
-        for ax, col, label in zip(axes, cols, labels):
+        
+        ax_iter = axes if vertical else axes.flat
+        for ax, col, label in zip(ax_iter, cols, labels):
             sns.lineplot(y=col, ax=ax, **kwparams)
             ax.set_xlim((mi_iter, ma_iter))
             if type(ylim_dict) == dict:
@@ -84,6 +94,7 @@ class RandomSearch(pd.DataFrame):
             ax.set_xticks(range(mi_iter, ma_iter + 1, 10))
             ax.set(xlabel="iteration", ylabel=label)
             ax.margins(0)
+        
         if legend_kwargs:
             fig.legend(**legend_kwargs)
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -102,6 +113,7 @@ class RandomSearch(pd.DataFrame):
         output_file: str = "rs_iters_box.pdf",
         ylim_dict: Optional[Dict[Union[str, int], Tuple[float, float]]] = None,
         legend_kwargs: Optional[Dict[str, Any]] = None,
+        vertical: bool = True,
         show: bool = False,
     ):
         labels = labels or cycle([None])
@@ -124,11 +136,20 @@ class RandomSearch(pd.DataFrame):
         )
 
         sns.set(font_scale=FONT_SCALE)
-        fig, axes = plt.subplots(len(cols), 1, figsize=(5, 5 * len(cols)))
+
+        figsize = (5, 5 * len(cols)) if vertical else (5 * len(cols), 5)
+        fig, axes = (
+            plt.subplots(len(cols), 1, figsize=figsize)
+            if vertical
+            else plt.subplots(1, len(cols), figsize=figsize)
+        )
+
         kwparams = dict(x=RandomSearch.iter_col, legend=False, data=data)
         if class_col:
             kwparams["hue"] = class_col
-        for ax, col, label in zip(axes, cols, labels):
+
+        ax_iter = axes if vertical else axes.flat
+        for ax, col, label in zip(ax_iter, cols, labels):
             sns.boxplot(data=data, x="box", y=col, showmeans=True, ax=ax)
             ax.set_xlim((mi_iter, ma_iter))
             if type(ylim_dict) == dict:
@@ -136,6 +157,7 @@ class RandomSearch(pd.DataFrame):
             ax.set_xticks(range(mi_iter, ma_iter + 1, 10))
             ax.set(xlabel="iteration", ylabel=label)
             ax.margins(0)
+
         if legend_kwargs:
             fig.legend(**legend_kwargs)
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -152,6 +174,7 @@ class RandomSearch(pd.DataFrame):
         labels: Optional[Sequence[str]] = None,
         output_file: str = "rs_conv.pdf",
         ylim_dict: Optional[Dict[Union[str, int], Tuple[float, float]]] = None,
+        vertical: bool = True,
         show: bool = False,
     ):
         labels = labels or cycle([None])
@@ -159,13 +182,24 @@ class RandomSearch(pd.DataFrame):
             [RandomSearch.group_col, RandomSearch.iter_col]
             + ([] if class_col is None else [class_col])
         )
+
         sns.set(font_scale=FONT_SCALE)
+
         data = self.get_last_iter(groupby=(class_col or [])).reset_index()
-        fig, axes = plt.subplots(1, len(cols), figsize=(5 * len(cols), 5))
+
+        figsize = (5, 5 * len(cols)) if vertical else (5 * len(cols), 5)
+        fig, axes = (
+            plt.subplots(len(cols), 1, figsize=figsize)
+            if vertical
+            else plt.subplots(1, len(cols), figsize=figsize)
+        )
+
         kwparams = dict(data=data, showmeans=True)
         if class_col:
             kwparams["x"] = class_col
-        for ax, col, label in zip(axes, cols, labels):
+        
+        ax_iter = axes if vertical else axes.flat
+        for ax, col, label in zip(ax_iter, cols, labels):
             sns.boxplot(y=col, ax=ax, **kwparams)
             if type(ylim_dict) == dict:
                 ax.set_ylim(*ylim_dict[col])
@@ -173,7 +207,9 @@ class RandomSearch(pd.DataFrame):
             ax.legend([], [], frameon=False)
             ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
             ax.margins(0)
+        
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+        
         plt.savefig(output_file, bbox_inches="tight")
         if show:
             plt.show()
