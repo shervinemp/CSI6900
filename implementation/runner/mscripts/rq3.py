@@ -7,7 +7,7 @@ from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from data import CSVDataLoader, Data, col_label_dict, fit_cols
+from data import CSVDataLoader, Data, col_label_dict, fit_cols, fit_labels_short
 from post_rs import ITER_COUNT
 from rq3_models import MAX_REPEAT, fit_range, prep_data, train_best
 from rs import RandomSearch as RS
@@ -48,7 +48,8 @@ def smart_fitness(
     h_proba = get_halt_proba(r_proba)
     n_steps = h_proba.shape[1]
 
-    value_vars_arr = [[(f, i) for f in fit_cols] for i in range(n_steps)]
+    cols = X.columns.levels[0][X.iloc[[0]].groupby(level=0, axis=1).size() > 1]
+    value_vars_arr = [[(c, i) for c in cols] for i in range(n_steps)]
     var_names = [f"{i}_var" for i in range(n_steps)]
     value_names = range(n_steps)
     df = melt_multi(
@@ -236,12 +237,14 @@ def evaluate(
 
     res_dfs.plot_converge_box(
         "method",
+        labels=fit_labels_short,
         output_file="rs_conv" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
     )
 
     res_dfs.plot(
         "method",
+        labels=fit_labels_short,
         output_file="rs_iters" + (f"_{suffix}" if suffix else "") + ".pdf",
         show=False,
         legend_kwargs=dict(loc="lower left", fontsize=8),
