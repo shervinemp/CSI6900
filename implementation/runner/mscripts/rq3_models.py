@@ -29,7 +29,7 @@ random_ = np.random.RandomState(seed=SEED)
 def fit_range(X: pd.DataFrame, rang: Union[Sequence[int], int]):
     if type(rang) is int:
         rang = range(rang)
-    dcols = list(product(fit_cols, rang))
+    dcols = list(product(X.columns.levels[0], rang))
     fit_X = X[X.columns.intersection(dcols)]
     return fit_X
 

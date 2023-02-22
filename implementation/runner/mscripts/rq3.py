@@ -7,7 +7,7 @@ from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from data import CSVDataLoader, col_label_dict, fit_cols
+from data import CSVDataLoader, Data, col_label_dict, fit_cols
 from post_rs import ITER_COUNT
 from rq3_models import MAX_REPEAT, fit_range, prep_data, train_best
 from rs import RandomSearch as RS
@@ -344,7 +344,7 @@ if __name__ == "__main__":
             df_test,
             sl_test,
             dmodels_base,
-            suffix=f"delta_{n_ignore + 2}",
+            suffix=f"deltab_{n_ignore + 2}",
             max_repeats=10,
             random_state=SEED,
             p_thresh=0.1,
@@ -352,20 +352,22 @@ if __name__ == "__main__":
             n_ignore=n_ignore,
         )
 
-    delta_transform = (
-        lambda X: (X.agg_repeats("cummax") - X.agg_repeats("cummin"))
-        .max(axis=1)
-        .to_frame()
+    delta_transform = lambda X: Data(
+        (X.agg_repeats("cummax") - X.agg_repeats("cummin")).max(axis=1).to_frame()
     )
-    dmodel = train_models(delta_transform(df_train), sl_train, max_repeats=-1)
-    dmodels = (lambda X: dmodel.predict(X.groupby(level=0, axis=1).last()),) * 9
+    dmodel = train_models(
+        delta_transform(df_train),
+        sl_train,
+        max_repeats=10,
+    )[0]
+    dmodels = (lambda X: dmodel[0].predict(X.groupby(level=0, axis=1).last()),) * 9
     for n_ignore in range(0, 8):
         evaluate(
-            df_test,
+            delta_transform(df_test),
             sl_test,
             dmodels,
             suffix=f"delta_{n_ignore + 2}",
-            max_repeats=-1,
+            max_repeats=10,
             random_state=SEED,
             p_thresh=0.1,
             n_begin=2,
