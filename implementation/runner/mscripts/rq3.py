@@ -329,10 +329,10 @@ if __name__ == "__main__":
     hl_train = df_train.get_hard_labels()
     hl_test = df_test.get_hard_labels()
 
-    smodels = train_models(df_train, sl_train, max_rep=MAX_REPEAT - 1)
+    smodels = train_models(df_train, sl_train, max_repeats=MAX_REPEAT - 1)
     evaluate(df_test, sl_test, smodels, suffix="soft", random_state=SEED)
 
-    hmodels = train_models(df_train, hl_train, max_rep=MAX_REPEAT - 1)
+    hmodels = train_models(df_train, hl_train, max_repeats=MAX_REPEAT - 1)
     evaluate(df_test, hl_test, hmodels, suffix="hard", random_state=SEED)
 
     delta_model = lambda X: (
