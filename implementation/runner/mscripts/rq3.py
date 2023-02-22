@@ -335,12 +335,12 @@ if __name__ == "__main__":
         (d := X[fit_cols].groupby(level=0, axis=1)).max() - d.min()
     ).max(axis=1)
     dmodels_base = (delta_model,) * 9
-    for n_ignore in range(1, 10):
+    for n_ignore in range(0, 8):
         evaluate(
             df_test,
             sl_test,
             dmodels_base,
-            suffix=f"delta_{n_ignore + 1}",
+            suffix=f"delta_{n_ignore + 2}",
             max_repeats=10,
             random_state=SEED,
             p_thresh=0.1,
