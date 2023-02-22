@@ -303,7 +303,10 @@ def rs_stats(
 ):
     if log:
         print(f"{base_label} / {label}")
-    stats = stat_test(results, baseline, col_label_dict=col_label_dict, log=log)
+    col_label_ = col_label_dict
+    if any([c not in col_label_ for c in results.columns.levels[0]]):
+        col_label_ = None
+    stats = stat_test(results, baseline, col_label_dict=col_label_, log=log)
     if log:
         if count and base_count:
             print(f"#iterations - {label} / {base_label}: {count} / {base_count}")
