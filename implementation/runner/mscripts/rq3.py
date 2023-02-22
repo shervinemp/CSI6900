@@ -48,7 +48,7 @@ def smart_fitness(
     h_proba = get_halt_proba(r_proba)
     n_steps = h_proba.shape[1]
 
-    cols = X.columns.levels[0][X.iloc[[0]].groupby(level=0, axis=1).size() > 1]
+    cols = (c := X.iloc[[0]].groupby(level=0, axis=1).size() > 1).loc[c].index
     value_vars_arr = [[(c, i) for c in cols] for i in range(n_steps)]
     var_names = [f"{i}_var" for i in range(n_steps)]
     value_names = range(n_steps)
@@ -179,6 +179,7 @@ def evaluate(
     suffix: Optional[str] = None,
     max_repeats: int = MAX_REPEAT,
     random_state=SEED,
+    print_stats: bool = True,
     **kwargs,
 ):
     X_ = prep_data(X, max_repeats=max_repeats)
@@ -253,27 +254,31 @@ def evaluate(
     if suffix:
         print(f"{suffix}:")
 
-    rs_stats_fm = partial(
-        rs_stats, baseline=fm["min"], base_label=base_labels[0], base_count=base_cnt[0]
-    )
+    if print_stats:
+        rs_stats_fm = partial(
+            rs_stats,
+            baseline=fm["min"],
+            base_label=base_labels[0],
+            base_count=base_cnt[0],
+        )
 
-    d = []
-    s = rs_stats_fm(f10["min"], label=base_labels[1], count=base_cnt[1])
-    d.append(s)
-
-    for r, c, l in zip(res_arr, cnt_arr, labels):
-        s = rs_stats_fm(r, label=l, count=c)
+        d = []
+        s = rs_stats_fm(f10["min"], label=base_labels[1], count=base_cnt[1])
         d.append(s)
 
-    for (df1, l1, cnt1), (df2, l2, cnt2) in pairwise_stride2(
-        zip(res_arr, labels, cnt_arr)
-    ):
-        s = rs_stats(df1, df2, l1, l2, cnt1, cnt2)
-        d.append(s)
+        for r, c, l in zip(res_arr, cnt_arr, labels):
+            s = rs_stats_fm(r, label=l, count=c)
+            d.append(s)
 
-    stats_df = pd.concat(d, axis=0).reset_index(drop=True)
-    with pd.option_context("display.float_format", str):
-        pprint(stats_df)
+        for (df1, l1, cnt1), (df2, l2, cnt2) in pairwise_stride2(
+            zip(res_arr, labels, cnt_arr)
+        ):
+            s = rs_stats(df1, df2, l1, l2, cnt1, cnt2)
+            d.append(s)
+
+        stats_df = pd.concat(d, axis=0).reset_index(drop=True)
+        with pd.option_context("display.float_format", str):
+            pprint(stats_df)
 
     rand = (
         np.random.RandomState(random_state)
@@ -289,7 +294,12 @@ def evaluate(
         )
 
     print("means:")
-    pprint(res_dfs.get_last_iter(groupby="method").groupby("method")[fit_cols].mean())
+    pprint(
+        res_dfs.get_last_iter(groupby="method")
+        .groupby("method")
+        .mean()
+        .drop([RS.group_col, RS.iter_col, "level_0"])
+    )
 
 
 def rs_stats(
@@ -304,7 +314,8 @@ def rs_stats(
     if log:
         print(f"{base_label} / {label}")
     col_label_ = col_label_dict
-    if any([c not in col_label_ for c in results.columns.levels[0]]):
+    cols = cols_.levels[0] if (cols_ := results.columns).nlevels > 1 else cols_
+    if any([c not in col_label_ for c in cols]):
         col_label_ = None
     stats = stat_test(results, baseline, col_label_dict=col_label_, log=log)
     if log:
@@ -374,6 +385,7 @@ if __name__ == "__main__":
             dmodels,
             suffix=f"delta_{n_ignore + 2}",
             max_repeats=10,
+            print_stats=False,
             random_state=SEED,
             p_thresh=0.1,
             n_begin=2,
