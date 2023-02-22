@@ -29,7 +29,7 @@ def smart_fitness(
     n_ignore: Optional[int] = None,
     n_continue: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    v_proba = get_visit_proba(
+    i_proba = get_indiv_proba(
         X,
         models[:-1] if models else None,
         p_thresh=p_thresh,
@@ -37,11 +37,11 @@ def smart_fitness(
         n_ignore=n_ignore,
         n_continue=n_continue,
     )
-    t_proba = get_transition_proba(
-        v_proba,
+    r_proba = get_reach_proba(
+        i_proba,
         method=method,
     )
-    h_proba = get_halt_proba(t_proba)
+    h_proba = get_halt_proba(r_proba)
     n_steps = h_proba.shape[1]
 
     value_vars_arr = [[(f, i) for f in fit_cols] for i in range(n_steps)]
@@ -66,12 +66,12 @@ def smart_fitness(
 
     df["f"] = df["1_var"]
     df = pd.pivot(df, columns="f", values=["min", "mean"])
-    cnt_df = t_proba.sum(axis=1) + 1
+    cnt = int(np.round(r_proba.sum(axis=1) + 1).sum())
 
-    return df, cnt_df
+    return df, cnt
 
 
-def get_visit_proba(
+def get_indiv_proba(
     X: pd.DataFrame,
     models: Optional[Sequence[Any]] = None,
     *,
@@ -118,27 +118,27 @@ def get_visit_proba(
     return pred_df
 
 
-def get_transition_proba(
-    visit_proba: pd.DataFrame,
+def get_reach_proba(
+    indiv_proba: pd.DataFrame,
     method: str = "first",
 ) -> pd.DataFrame:
     if method not in ("or", "and", "first"):
         raise ValueError(f'Method "{method}" is not valid.')
 
     if method == "and":
-        t_proba = visit_proba.cumprod(axis=1)
+        t_proba = indiv_proba.cumprod(axis=1)
     elif method == "or":
-        t_proba = (1 - visit_proba).cumprod(axis=1)
+        t_proba = (1 - indiv_proba).cumprod(axis=1)
     elif method == "first":
-        t_proba = pd.concat((visit_proba[[0]],) * visit_proba.shape[1], axis=1).astype(
+        t_proba = pd.concat((indiv_proba[[0]],) * indiv_proba.shape[1], axis=1).astype(
             float
         )
 
     return t_proba
 
 
-def get_halt_proba(transition_proba: pd.DataFrame) -> pd.DataFrame:
-    h_proba = transition_proba.copy()
+def get_halt_proba(reach_proba: pd.DataFrame) -> pd.DataFrame:
+    h_proba = reach_proba.copy()
     pad_pos = h_proba.shape[1] + 1
     h_proba.columns = range(1, pad_pos)
     h_proba[0] = 1
@@ -161,7 +161,7 @@ def train_models(X, y, class_labels=None, *, cv=5, max_rep=MAX_REPEAT, **kwargs)
 
 
 def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
-    X_ = prep_data(X)
+    X_ = prep_data(X, max_repeats=MAX_REPEAT)
 
     search_split = lambda sf: (RS.from_dataframe(sf[0], n_iter=ITER_COUNT), sf[1])
 
@@ -217,10 +217,10 @@ def evaluate(X, y, models, *, suffix=None, random_state=SEED, **kwargs):
     ]
 
     count_arr = [
-        cnt_random_first.sum(),
-        cnt_model_first.sum(),
-        cnt_random_and.sum(),
-        cnt_model_and.sum(),
+        cnt_random_first,
+        cnt_model_first,
+        cnt_random_and,
+        cnt_model_and,
     ]
 
     base_arr = [
