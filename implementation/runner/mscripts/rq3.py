@@ -60,7 +60,7 @@ def smart_fitness(
         ignore_index=False,
     )
 
-    w = pd.concat([h_proba] * len(fit_cols), axis=0)
+    w = pd.concat([h_proba] * len(cols), axis=0)
     mean_of_rows = w.mean(axis=1).to_numpy()
     w = w / mean_of_rows[:, np.newaxis]
 
@@ -363,7 +363,7 @@ if __name__ == "__main__":
         sl_train,
         max_repeats=10,
     )[0]
-    dmodels = (lambda X: dmodel[0].predict(X.groupby(level=0, axis=1).last()),) * 9
+    dmodels = (lambda X: dmodel.predict(X.groupby(level=0, axis=1).last()),) * 9
     for n_ignore in range(0, 8):
         evaluate(
             delta_transform(df_test),
