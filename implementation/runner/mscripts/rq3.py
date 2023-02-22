@@ -298,7 +298,7 @@ def evaluate(
         res_dfs.get_last_iter(groupby="method")
         .groupby("method")
         .mean()
-        .drop([RS.group_col, RS.iter_col, "level_0"])
+        .drop([RS.group_col, RS.iter_col, "level_0"], axis=1)
     )
 
 
