@@ -220,7 +220,7 @@ class Data(pd.DataFrame):
 
         df_ = reduce(
             lambda l, r: l.merge(r, left_index=True, right_index=True),
-            map(lambda func: repeats.agg(func), agg_mode),
+            map(repeats.agg, agg_mode),
         )
         if multi_agg:
             if self.columns.nlevels == 1:
