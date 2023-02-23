@@ -347,9 +347,11 @@ if __name__ == "__main__":
     hl_test = df_test.get_hard_labels()
 
     smodels = train_models(df_train, sl_train, max_repeats=MAX_REPEAT - 1)
+    print(smodels)
     evaluate(df_test, sl_test, smodels, suffix="soft", random_state=SEED)
 
     hmodels = train_models(df_train, hl_train, max_repeats=MAX_REPEAT - 1)
+    print(hmodels)
     evaluate(df_test, hl_test, hmodels, suffix="hard", random_state=SEED)
 
     delta_model = lambda X: (
@@ -377,6 +379,7 @@ if __name__ == "__main__":
         sl_train,
         max_repeats=10,
     )[0]
+    print(dmodel)
     dmodels = (lambda X: dmodel.predict(X.groupby(level=0, axis=1).last()),) * 9
     for n_ignore in range(0, 8):
         evaluate(
